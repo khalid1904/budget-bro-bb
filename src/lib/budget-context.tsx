@@ -1,27 +1,53 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Transaction, MonthBudget, UserProfile } from './types';
+import { supabase } from '@/integrations/supabase/client';
+import { Session, User } from '@supabase/supabase-js';
+
+interface Profile {
+  username: string;
+  email: string;
+  bio: string;
+  avatar: string;
+}
+
+interface Settings {
+  default_currency: string;
+  dark_mode: boolean;
+}
+
+interface Transaction {
+  id: string;
+  title: string;
+  amount: number;
+  category: string;
+  date: string;
+  type: string;
+  month: string;
+}
 
 interface BudgetContextType {
-  currentMonth: string;
-  setCurrentMonth: (month: string) => void;
-  budgets: MonthBudget[];
-  addTransaction: (tx: Omit<Transaction, 'id'>) => void;
-  deleteTransaction: (id: string) => void;
-  editTransaction: (id: string, tx: Partial<Transaction>) => void;
-  getCurrentBudget: () => MonthBudget | undefined;
-  getTotalIncoming: () => number;
-  getTotalOutgoing: () => number;
-  getInHand: () => number;
-  isLoggedIn: boolean;
-  login: (username: string, password: string) => boolean;
-  register: (username: string, email: string, password: string) => boolean;
-  logout: () => void;
-  profile: UserProfile;
-  updateProfile: (p: Partial<UserProfile>) => void;
+  user: User | null;
+  session: Session | null;
+  loading: boolean;
+  profile: Profile;
+  settings: Settings;
+  transactions: Transaction[];
   customCategories: { incoming: string[]; outgoing: string[] };
-  addCategory: (type: 'incoming' | 'outgoing', cat: string) => void;
+  currentMonth: string;
+  setCurrentMonth: (m: string) => void;
+  refreshProfile: () => Promise<void>;
+  refreshSettings: () => Promise<void>;
+  refreshTransactions: () => Promise<void>;
+  refreshCategories: () => Promise<void>;
+  updateProfile: (p: Partial<Profile>) => Promise<void>;
+  updateSettings: (s: Partial<Settings>) => Promise<void>;
+  addTransaction: (tx: Omit<Transaction, 'id'>) => Promise<void>;
+  editTransaction: (id: string, tx: Partial<Transaction>) => Promise<void>;
+  deleteTransaction: (id: string) => Promise<void>;
+  addCategory: (type: 'incoming' | 'outgoing', name: string) => Promise<void>;
+  signOut: () => Promise<void>;
   isDark: boolean;
   toggleDark: () => void;
+  formatCurrency: (n: number) => string;
 }
 
 const BudgetContext = createContext<BudgetContextType | null>(null);
@@ -29,105 +55,156 @@ const BudgetContext = createContext<BudgetContextType | null>(null);
 const now = new Date();
 const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-function loadFromStorage<T>(key: string, fallback: T): T {
-  try {
-    const val = localStorage.getItem(key);
-    return val ? JSON.parse(val) : fallback;
-  } catch { return fallback; }
-}
+const CURRENCIES: Record<string, { locale: string; currency: string }> = {
+  USD: { locale: 'en-US', currency: 'USD' },
+  EUR: { locale: 'de-DE', currency: 'EUR' },
+  GBP: { locale: 'en-GB', currency: 'GBP' },
+  INR: { locale: 'en-IN', currency: 'INR' },
+  JPY: { locale: 'ja-JP', currency: 'JPY' },
+  CAD: { locale: 'en-CA', currency: 'CAD' },
+  AUD: { locale: 'en-AU', currency: 'AUD' },
+  CHF: { locale: 'de-CH', currency: 'CHF' },
+  CNY: { locale: 'zh-CN', currency: 'CNY' },
+  BRL: { locale: 'pt-BR', currency: 'BRL' },
+};
+
+export { CURRENCIES };
 
 export function BudgetProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<Profile>({ username: '', email: '', bio: '', avatar: '💼' });
+  const [settings, setSettings] = useState<Settings>({ default_currency: 'USD', dark_mode: false });
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [customCategories, setCustomCategories] = useState<{ incoming: string[]; outgoing: string[] }>({ incoming: [], outgoing: [] });
   const [currentMonth, setCurrentMonth] = useState(defaultMonth);
-  const [budgets, setBudgets] = useState<MonthBudget[]>(() => loadFromStorage('budgets', []));
-  const [isLoggedIn, setIsLoggedIn] = useState(() => loadFromStorage('isLoggedIn', false));
-  const [profile, setProfile] = useState<UserProfile>(() => loadFromStorage('profile', {
-    username: '', email: '', bio: '', avatar: '💼'
-  }));
-  const [customCategories, setCustomCategories] = useState(() => loadFromStorage('customCategories', {
-    incoming: [] as string[], outgoing: [] as string[]
-  }));
-  const [isDark, setIsDark] = useState(() => loadFromStorage('darkMode', false));
+  const [isDark, setIsDark] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('darkMode') || 'false'); } catch { return false; }
+  });
 
-  useEffect(() => { localStorage.setItem('budgets', JSON.stringify(budgets)); }, [budgets]);
-  useEffect(() => { localStorage.setItem('isLoggedIn', JSON.stringify(isLoggedIn)); }, [isLoggedIn]);
-  useEffect(() => { localStorage.setItem('profile', JSON.stringify(profile)); }, [profile]);
-  useEffect(() => { localStorage.setItem('customCategories', JSON.stringify(customCategories)); }, [customCategories]);
-  useEffect(() => { localStorage.setItem('darkMode', JSON.stringify(isDark)); }, [isDark]);
+  // Auth listener
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
+  // Dark mode
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
+    localStorage.setItem('darkMode', JSON.stringify(isDark));
   }, [isDark]);
 
-  const getCurrentBudget = useCallback(() => budgets.find(b => b.month === currentMonth), [budgets, currentMonth]);
+  const refreshProfile = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+    if (data) setProfile({ username: data.username, email: data.email, bio: data.bio, avatar: data.avatar });
+  }, [user]);
 
-  const addTransaction = useCallback((tx: Omit<Transaction, 'id'>) => {
-    const id = crypto.randomUUID();
-    setBudgets(prev => {
-      const existing = prev.find(b => b.month === currentMonth);
-      if (existing) {
-        return prev.map(b => b.month === currentMonth
-          ? { ...b, transactions: [...b.transactions, { ...tx, id }] }
-          : b
-        );
-      }
-      return [...prev, { id: crypto.randomUUID(), month: currentMonth, transactions: [{ ...tx, id }] }];
-    });
-  }, [currentMonth]);
+  const refreshSettings = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from('user_settings').select('*').eq('user_id', user.id).single();
+    if (data) {
+      setSettings({ default_currency: data.default_currency, dark_mode: data.dark_mode });
+      setIsDark(data.dark_mode);
+    }
+  }, [user]);
 
-  const deleteTransaction = useCallback((id: string) => {
-    setBudgets(prev => prev.map(b => ({
-      ...b,
-      transactions: b.transactions.filter(t => t.id !== id)
-    })));
+  const refreshTransactions = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from('transactions').select('*').eq('user_id', user.id).order('date', { ascending: false });
+    if (data) setTransactions(data.map(t => ({ ...t, amount: Number(t.amount) })));
+  }, [user]);
+
+  const refreshCategories = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from('custom_categories').select('*').eq('user_id', user.id);
+    if (data) {
+      const incoming = data.filter(c => c.type === 'incoming').map(c => c.name);
+      const outgoing = data.filter(c => c.type === 'outgoing').map(c => c.name);
+      setCustomCategories({ incoming, outgoing });
+    }
+  }, [user]);
+
+  // Load data when user changes
+  useEffect(() => {
+    if (user) {
+      refreshProfile();
+      refreshSettings();
+      refreshTransactions();
+      refreshCategories();
+    }
+  }, [user, refreshProfile, refreshSettings, refreshTransactions, refreshCategories]);
+
+  const updateProfile = useCallback(async (p: Partial<Profile>) => {
+    if (!user) return;
+    await supabase.from('profiles').update(p).eq('user_id', user.id);
+    setProfile(prev => ({ ...prev, ...p }));
+  }, [user]);
+
+  const updateSettings = useCallback(async (s: Partial<Settings>) => {
+    if (!user) return;
+    await supabase.from('user_settings').update(s).eq('user_id', user.id);
+    setSettings(prev => ({ ...prev, ...s }));
+    if (s.dark_mode !== undefined) setIsDark(s.dark_mode);
+  }, [user]);
+
+  const addTransaction = useCallback(async (tx: Omit<Transaction, 'id'>) => {
+    if (!user) return;
+    const { data } = await supabase.from('transactions').insert({ ...tx, user_id: user.id }).select().single();
+    if (data) setTransactions(prev => [{ ...data, amount: Number(data.amount) }, ...prev]);
+  }, [user]);
+
+  const editTransaction = useCallback(async (id: string, updates: Partial<Transaction>) => {
+    if (!user) return;
+    await supabase.from('transactions').update(updates).eq('id', id).eq('user_id', user.id);
+    setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+  }, [user]);
+
+  const deleteTransaction = useCallback(async (id: string) => {
+    if (!user) return;
+    await supabase.from('transactions').delete().eq('id', id).eq('user_id', user.id);
+    setTransactions(prev => prev.filter(t => t.id !== id));
+  }, [user]);
+
+  const addCategory = useCallback(async (type: 'incoming' | 'outgoing', name: string) => {
+    if (!user) return;
+    await supabase.from('custom_categories').insert({ user_id: user.id, name, type });
+    setCustomCategories(prev => ({ ...prev, [type]: [...prev[type], name] }));
+  }, [user]);
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
   }, []);
 
-  const editTransaction = useCallback((id: string, updates: Partial<Transaction>) => {
-    setBudgets(prev => prev.map(b => ({
-      ...b,
-      transactions: b.transactions.map(t => t.id === id ? { ...t, ...updates } : t)
-    })));
-  }, []);
+  const toggleDark = useCallback(() => {
+    const newVal = !isDark;
+    setIsDark(newVal);
+    if (user) {
+      supabase.from('user_settings').update({ dark_mode: newVal }).eq('user_id', user.id);
+    }
+  }, [isDark, user]);
 
-  const getTotalIncoming = useCallback(() => {
-    const budget = budgets.find(b => b.month === currentMonth);
-    return budget?.transactions.filter(t => t.type === 'incoming').reduce((s, t) => s + t.amount, 0) ?? 0;
-  }, [budgets, currentMonth]);
-
-  const getTotalOutgoing = useCallback(() => {
-    const budget = budgets.find(b => b.month === currentMonth);
-    return budget?.transactions.filter(t => t.type === 'outgoing').reduce((s, t) => s + t.amount, 0) ?? 0;
-  }, [budgets, currentMonth]);
-
-  const getInHand = useCallback(() => getTotalIncoming() - getTotalOutgoing(), [getTotalIncoming, getTotalOutgoing]);
-
-  const login = useCallback((username: string, _password: string) => {
-    setIsLoggedIn(true);
-    setProfile(p => ({ ...p, username: username || p.username }));
-    return true;
-  }, []);
-
-  const register = useCallback((username: string, email: string, _password: string) => {
-    setIsLoggedIn(true);
-    setProfile({ username, email, bio: '', avatar: '💼' });
-    return true;
-  }, []);
-
-  const logout = useCallback(() => { setIsLoggedIn(false); }, []);
-  const updateProfile = useCallback((p: Partial<UserProfile>) => setProfile(prev => ({ ...prev, ...p })), []);
-  const addCategory = useCallback((type: 'incoming' | 'outgoing', cat: string) => {
-    setCustomCategories((prev: { incoming: string[]; outgoing: string[] }) => ({
-      ...prev,
-      [type]: [...prev[type], cat]
-    }));
-  }, []);
-  const toggleDark = useCallback(() => setIsDark((d: boolean) => !d), []);
+  const formatCurrency = useCallback((n: number) => {
+    const c = CURRENCIES[settings.default_currency] || CURRENCIES.USD;
+    return new Intl.NumberFormat(c.locale, { style: 'currency', currency: c.currency, maximumFractionDigits: 2 }).format(n);
+  }, [settings.default_currency]);
 
   return (
     <BudgetContext.Provider value={{
-      currentMonth, setCurrentMonth, budgets, addTransaction, deleteTransaction, editTransaction,
-      getCurrentBudget, getTotalIncoming, getTotalOutgoing, getInHand,
-      isLoggedIn, login, register, logout, profile, updateProfile,
-      customCategories, addCategory, isDark, toggleDark
+      user, session, loading, profile, settings, transactions, customCategories,
+      currentMonth, setCurrentMonth, refreshProfile, refreshSettings, refreshTransactions, refreshCategories,
+      updateProfile, updateSettings, addTransaction, editTransaction, deleteTransaction,
+      addCategory, signOut, isDark, toggleDark, formatCurrency
     }}>
       {children}
     </BudgetContext.Provider>

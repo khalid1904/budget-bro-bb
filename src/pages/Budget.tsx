@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useBudget } from '@/lib/budget-context';
 import { DEFAULT_INCOMING_CATEGORIES, DEFAULT_OUTGOING_CATEGORIES } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,14 +12,9 @@ import { Plus, Trash2, Edit2, Tag, TrendingUp, TrendingDown } from 'lucide-react
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
-function formatCurrency(n: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n);
-}
-
 export default function BudgetPage() {
-  const { currentMonth, getCurrentBudget, addTransaction, deleteTransaction, editTransaction, getTotalIncoming, getTotalOutgoing, customCategories, addCategory } = useBudget();
+  const { currentMonth, transactions, addTransaction, deleteTransaction, editTransaction, customCategories, addCategory, formatCurrency } = useBudget();
   const { toast } = useToast();
-  const budget = getCurrentBudget();
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -35,33 +30,35 @@ export default function BudgetPage() {
     ? [...DEFAULT_INCOMING_CATEGORIES, ...customCategories.incoming]
     : [...DEFAULT_OUTGOING_CATEGORIES, ...customCategories.outgoing];
 
-  const transactions = (budget?.transactions || [])
-    .filter(t => t.type === activeTab)
-    .filter(t => filterCategory === 'all' || t.category === filterCategory)
-    .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+  const filteredTxns = useMemo(() =>
+    transactions
+      .filter(t => t.month === currentMonth && t.type === activeTab)
+      .filter(t => filterCategory === 'all' || t.category === filterCategory)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    [transactions, currentMonth, activeTab, filterCategory]
+  );
 
-  const total = activeTab === 'incoming' ? getTotalIncoming() : getTotalOutgoing();
+  const total = useMemo(() =>
+    transactions.filter(t => t.month === currentMonth && t.type === activeTab).reduce((s, t) => s + t.amount, 0),
+    [transactions, currentMonth, activeTab]
+  );
 
-  const resetForm = () => {
-    setTitle(''); setAmount(''); setCategory(''); setDate(''); setEditId(null);
-  };
+  const resetForm = () => { setTitle(''); setAmount(''); setCategory(''); setDate(''); setEditId(null); };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim() || !amount || !category) {
-      toast({ title: 'Please fill required fields', variant: 'destructive' });
-      return;
+      toast({ title: 'Please fill required fields', variant: 'destructive' }); return;
     }
     const amt = parseFloat(amount);
     if (isNaN(amt) || amt <= 0) {
-      toast({ title: 'Enter a valid amount', variant: 'destructive' });
-      return;
+      toast({ title: 'Enter a valid amount', variant: 'destructive' }); return;
     }
-
+    const txDate = date || new Date().toISOString().split('T')[0];
     if (editId) {
-      editTransaction(editId, { title: title.trim(), amount: amt, category, date: date || new Date().toISOString().split('T')[0] });
+      await editTransaction(editId, { title: title.trim(), amount: amt, category, date: txDate });
       toast({ title: 'Entry updated' });
     } else {
-      addTransaction({ title: title.trim(), amount: amt, category, date: date || new Date().toISOString().split('T')[0], type: activeTab });
+      await addTransaction({ title: title.trim(), amount: amt, category, date: txDate, type: activeTab, month: currentMonth });
       toast({ title: 'Entry added' });
     }
     resetForm();
@@ -69,15 +66,15 @@ export default function BudgetPage() {
   };
 
   const handleEdit = (id: string) => {
-    const tx = budget?.transactions.find(t => t.id === id);
+    const tx = transactions.find(t => t.id === id);
     if (!tx) return;
     setTitle(tx.title); setAmount(String(tx.amount)); setCategory(tx.category); setDate(tx.date); setEditId(id);
     setDialogOpen(true);
   };
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
-    addCategory(activeTab, newCategoryName.trim());
+    await addCategory(activeTab, newCategoryName.trim());
     setNewCategoryName('');
     setNewCategoryDialogOpen(false);
     toast({ title: 'Category added' });
@@ -98,71 +95,42 @@ export default function BudgetPage() {
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as 'incoming' | 'outgoing'); setFilterCategory('all'); }}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <TabsList>
-            <TabsTrigger value="incoming" className="gap-1.5">
-              <TrendingUp className="w-4 h-4" /> Income
-            </TabsTrigger>
-            <TabsTrigger value="outgoing" className="gap-1.5">
-              <TrendingDown className="w-4 h-4" /> Expenses
-            </TabsTrigger>
+            <TabsTrigger value="incoming" className="gap-1.5"><TrendingUp className="w-4 h-4" /> Income</TabsTrigger>
+            <TabsTrigger value="outgoing" className="gap-1.5"><TrendingDown className="w-4 h-4" /> Expenses</TabsTrigger>
           </TabsList>
-
           <div className="flex items-center gap-2">
             <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Filter" />
-              </SelectTrigger>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Filter" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
                 {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
-
             <Dialog open={newCategoryDialogOpen} onOpenChange={setNewCategoryDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="icon"><Tag className="w-4 h-4" /></Button>
-              </DialogTrigger>
+              <DialogTrigger asChild><Button variant="outline" size="icon"><Tag className="w-4 h-4" /></Button></DialogTrigger>
               <DialogContent>
                 <DialogHeader><DialogTitle className="font-display">Add Custom Category</DialogTitle></DialogHeader>
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Category Name</Label>
-                    <Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="e.g. Side Hustle" />
-                  </div>
+                  <div className="space-y-2"><Label>Category Name</Label><Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="e.g. Side Hustle" /></div>
                   <Button onClick={handleAddCategory} className="w-full">Add Category</Button>
                 </div>
               </DialogContent>
             </Dialog>
-
             <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
-              <DialogTrigger asChild>
-                <Button><Plus className="w-4 h-4 mr-1" /> Add Entry</Button>
-              </DialogTrigger>
+              <DialogTrigger asChild><Button><Plus className="w-4 h-4 mr-1" /> Add Entry</Button></DialogTrigger>
               <DialogContent>
-                <DialogHeader>
-                  <DialogTitle className="font-display">{editId ? 'Edit' : 'Add'} {activeTab === 'incoming' ? 'Income' : 'Expense'}</DialogTitle>
-                </DialogHeader>
+                <DialogHeader><DialogTitle className="font-display">{editId ? 'Edit' : 'Add'} {activeTab === 'incoming' ? 'Income' : 'Expense'}</DialogTitle></DialogHeader>
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Title</Label>
-                    <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Monthly Salary" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Amount ($)</Label>
-                    <Input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" min="0" step="0.01" />
-                  </div>
+                  <div className="space-y-2"><Label>Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Monthly Salary" /></div>
+                  <div className="space-y-2"><Label>Amount</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" min="0" step="0.01" /></div>
                   <div className="space-y-2">
                     <Label>Category</Label>
                     <Select value={category} onValueChange={setCategory}>
                       <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                      <SelectContent>
-                        {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                      </SelectContent>
+                      <SelectContent>{allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Date (optional)</Label>
-                    <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
-                  </div>
+                  <div className="space-y-2"><Label>Date (optional)</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
                   <Button onClick={handleSubmit} className="w-full">{editId ? 'Update' : 'Add'} Entry</Button>
                 </div>
               </DialogContent>
@@ -173,25 +141,15 @@ export default function BudgetPage() {
         <TabsContent value={activeTab} className="mt-4">
           <Card className="shadow-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="font-display text-lg">
-                {activeTab === 'incoming' ? 'Income' : 'Expense'} Entries
-              </CardTitle>
-              <span className={`text-lg font-display font-bold ${activeTab === 'incoming' ? 'text-success' : 'text-destructive'}`}>
-                {formatCurrency(total)}
-              </span>
+              <CardTitle className="font-display text-lg">{activeTab === 'incoming' ? 'Income' : 'Expense'} Entries</CardTitle>
+              <span className={`text-lg font-display font-bold ${activeTab === 'incoming' ? 'text-success' : 'text-destructive'}`}>{formatCurrency(total)}</span>
             </CardHeader>
             <CardContent>
-              {transactions.length > 0 ? (
+              {filteredTxns.length > 0 ? (
                 <div className="divide-y divide-border">
                   <AnimatePresence>
-                    {transactions.map(tx => (
-                      <motion.div
-                        key={tx.id}
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="flex items-center justify-between py-3 gap-3"
-                      >
+                    {filteredTxns.map(tx => (
+                      <motion.div key={tx.id} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="flex items-center justify-between py-3 gap-3">
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-foreground truncate">{tx.title}</p>
                           <div className="flex items-center gap-2 mt-0.5">
@@ -199,16 +157,10 @@ export default function BudgetPage() {
                             {tx.date && <span className="text-xs text-muted-foreground">{new Date(tx.date).toLocaleDateString()}</span>}
                           </div>
                         </div>
-                        <span className={`font-display font-semibold whitespace-nowrap ${activeTab === 'incoming' ? 'text-success' : 'text-destructive'}`}>
-                          {formatCurrency(tx.amount)}
-                        </span>
+                        <span className={`font-display font-semibold whitespace-nowrap ${activeTab === 'incoming' ? 'text-success' : 'text-destructive'}`}>{formatCurrency(tx.amount)}</span>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(tx.id)}>
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { deleteTransaction(tx.id); toast({ title: 'Entry deleted' }); }}>
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(tx.id)}><Edit2 className="w-4 h-4" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={async () => { await deleteTransaction(tx.id); toast({ title: 'Entry deleted' }); }}><Trash2 className="w-4 h-4" /></Button>
                         </div>
                       </motion.div>
                     ))}

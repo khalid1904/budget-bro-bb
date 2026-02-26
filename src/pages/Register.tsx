@@ -5,18 +5,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PiggyBank } from 'lucide-react';
-import { useBudget } from '@/lib/budget-context';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { register } = useBudget();
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !email.trim() || !password.trim()) {
       toast({ title: 'Please fill all fields', variant: 'destructive' });
@@ -26,9 +26,22 @@ export default function RegisterPage() {
       toast({ title: 'Password must be at least 6 characters', variant: 'destructive' });
       return;
     }
-    register(username, email, password);
-    toast({ title: 'Account created!' });
-    navigate('/dashboard');
+    setLoading(true);
+    const { error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: { username: username.trim() },
+        emailRedirectTo: window.location.origin,
+      },
+    });
+    setLoading(false);
+    if (error) {
+      toast({ title: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Check your email to confirm your account!' });
+    navigate('/login');
   };
 
   return (
@@ -59,7 +72,9 @@ export default function RegisterPage() {
                 <Label htmlFor="password">Password</Label>
                 <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min 6 characters" />
               </div>
-              <Button type="submit" className="w-full">Create Account</Button>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? 'Creating account...' : 'Create Account'}
+              </Button>
             </form>
             <p className="mt-4 text-center text-sm text-muted-foreground">
               Already have an account?{' '}

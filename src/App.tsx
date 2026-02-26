@@ -17,13 +17,15 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isLoggedIn } = useBudget();
-  return isLoggedIn ? <>{children}</> : <Navigate to="/login" replace />;
+  const { user, loading } = useBudget();
+  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted-foreground">Loading...</div></div>;
+  return user ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { isLoggedIn } = useBudget();
-  return isLoggedIn ? <Navigate to="/dashboard" replace /> : <>{children}</>;
+  const { user, loading } = useBudget();
+  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted-foreground">Loading...</div></div>;
+  return user ? <Navigate to="/dashboard" replace /> : <>{children}</>;
 }
 
 const App = () => (
