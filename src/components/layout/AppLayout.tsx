@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import { NavLink, useNavigate, Outlet } from 'react-router-dom';
+import { useState } from 'react';
 import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, PiggyBank, Menu, X, Moon, Sun } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { useBudget } from '@/lib/budget-context';
 import { cn } from '@/lib/utils';
 
@@ -13,23 +12,21 @@ const navItems = [
 ];
 
 export default function AppLayout() {
-  const { logout, profile, isDark, toggleDark } = useBudget();
+  const { signOut, profile, isDark, toggleDark } = useBudget();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await signOut();
     navigate('/');
   };
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-foreground/20 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <aside className={cn(
         "fixed lg:sticky top-0 left-0 z-50 h-screen w-64 bg-sidebar flex flex-col transition-transform duration-300 lg:translate-x-0",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -64,17 +61,11 @@ export default function AppLayout() {
         </nav>
 
         <div className="p-3 border-t border-sidebar-border space-y-2">
-          <button
-            onClick={toggleDark}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
-          >
+          <button onClick={toggleDark} className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors">
             {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             {isDark ? 'Light Mode' : 'Dark Mode'}
           </button>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
-          >
+          <button onClick={handleLogout} className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors">
             <LogOut className="w-5 h-5" />
             Sign Out
           </button>
@@ -87,13 +78,12 @@ export default function AppLayout() {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">{profile.username || 'User'}</p>
-              <p className="text-xs text-sidebar-muted truncate">{profile.email || 'user@email.com'}</p>
+              <p className="text-xs text-sidebar-muted truncate">{profile.email}</p>
             </div>
           </div>
         </div>
       </aside>
 
-      {/* Main */}
       <div className="flex-1 min-w-0">
         <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-lg border-b border-border lg:hidden">
           <div className="flex items-center h-14 px-4">

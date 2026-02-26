@@ -13,10 +13,6 @@ const CHART_COLORS = [
   'hsl(280, 60%, 50%)', 'hsl(340, 60%, 50%)', 'hsl(80, 60%, 45%)',
 ];
 
-function formatCurrency(n: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
-}
-
 function getMonthOptions() {
   const months: string[] = [];
   const now = new Date();
@@ -33,34 +29,35 @@ function formatMonth(m: string) {
 }
 
 export default function DashboardPage() {
-  const { currentMonth, setCurrentMonth, getTotalIncoming, getTotalOutgoing, getInHand, getCurrentBudget, budgets } = useBudget();
+  const { currentMonth, setCurrentMonth, transactions, formatCurrency } = useBudget();
 
-  const incoming = getTotalIncoming();
-  const outgoing = getTotalOutgoing();
-  const inHand = getInHand();
-  const budget = getCurrentBudget();
+  const monthTxns = useMemo(() => transactions.filter(t => t.month === currentMonth), [transactions, currentMonth]);
+  const incoming = useMemo(() => monthTxns.filter(t => t.type === 'incoming').reduce((s, t) => s + t.amount, 0), [monthTxns]);
+  const outgoing = useMemo(() => monthTxns.filter(t => t.type === 'outgoing').reduce((s, t) => s + t.amount, 0), [monthTxns]);
+  const inHand = incoming - outgoing;
   const isNegative = inHand < 0;
   const monthOptions = getMonthOptions();
 
   const categoryData = useMemo(() => {
-    if (!budget) return { incoming: [], outgoing: [] };
-    const group = (type: 'incoming' | 'outgoing') => {
+    const group = (type: string) => {
       const map: Record<string, number> = {};
-      budget.transactions.filter(t => t.type === type).forEach(t => {
-        map[t.category] = (map[t.category] || 0) + t.amount;
-      });
+      monthTxns.filter(t => t.type === type).forEach(t => { map[t.category] = (map[t.category] || 0) + t.amount; });
       return Object.entries(map).map(([name, value]) => ({ name, value }));
     };
     return { incoming: group('incoming'), outgoing: group('outgoing') };
-  }, [budget]);
+  }, [monthTxns]);
 
   const monthlyTrend = useMemo(() => {
-    return budgets.slice(-6).map(b => {
-      const inc = b.transactions.filter(t => t.type === 'incoming').reduce((s, t) => s + t.amount, 0);
-      const out = b.transactions.filter(t => t.type === 'outgoing').reduce((s, t) => s + t.amount, 0);
-      return { month: formatMonth(b.month).split(' ')[0]?.slice(0, 3), income: inc, expense: out };
+    const byMonth: Record<string, { income: number; expense: number }> = {};
+    transactions.forEach(t => {
+      if (!byMonth[t.month]) byMonth[t.month] = { income: 0, expense: 0 };
+      if (t.type === 'incoming') byMonth[t.month].income += t.amount;
+      else byMonth[t.month].expense += t.amount;
     });
-  }, [budgets]);
+    return Object.entries(byMonth).sort(([a], [b]) => a.localeCompare(b)).slice(-6).map(([m, d]) => ({
+      month: formatMonth(m).split(' ')[0]?.slice(0, 3), ...d
+    }));
+  }, [transactions]);
 
   return (
     <div className="space-y-6">
@@ -71,20 +68,15 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-3">
           <Select value={currentMonth} onValueChange={setCurrentMonth}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {monthOptions.map(m => (
-                <SelectItem key={m} value={m}>{formatMonth(m)}</SelectItem>
-              ))}
+              {monthOptions.map(m => <SelectItem key={m} value={m}>{formatMonth(m)}</SelectItem>)}
             </SelectContent>
           </Select>
           <Button asChild><Link to="/budget"><Plus className="w-4 h-4 mr-1" /> Add</Link></Button>
         </div>
       </div>
 
-      {/* Overview cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Total Income', value: incoming, icon: TrendingUp, color: 'text-success' },
@@ -113,9 +105,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Category breakdown */}
         {(['incoming', 'outgoing'] as const).map(type => (
           <Card key={type} className="shadow-card">
             <CardHeader>
@@ -128,9 +118,7 @@ export default function DashboardPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie data={categoryData[type]} dataKey="value" cx="50%" cy="50%" innerRadius={30} outerRadius={60}>
-                          {categoryData[type].map((_, i) => (
-                            <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                          ))}
+                          {categoryData[type].map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                         </Pie>
                         <Tooltip formatter={(v: number) => formatCurrency(v)} />
                       </PieChart>
@@ -155,7 +143,6 @@ export default function DashboardPage() {
           </Card>
         ))}
 
-        {/* Monthly trend */}
         {monthlyTrend.length > 1 && (
           <Card className="shadow-card lg:col-span-2">
             <CardHeader>
@@ -165,8 +152,8 @@ export default function DashboardPage() {
               <div className="h-60">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={monthlyTrend}>
-                    <XAxis dataKey="month" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                    <YAxis tick={{ fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => `$${v / 1000}k`} />
+                    <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                     <Tooltip formatter={(v: number) => formatCurrency(v)} />
                     <Bar dataKey="income" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="expense" fill="hsl(0, 72%, 51%)" radius={[4, 4, 0, 0]} />
