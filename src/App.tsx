@@ -4,12 +4,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { BudgetProvider, useBudget } from "@/lib/budget-context";
+import { RecurringProvider } from "@/lib/recurring-context";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Budget from "./pages/Budget";
 import Analytics from "./pages/Analytics";
+import Recurring from "./pages/Recurring";
 import Profile from "./pages/Profile";
 import AppLayout from "./components/layout/AppLayout";
 import NotFound from "./pages/NotFound";
@@ -39,9 +41,10 @@ const App = () => (
             <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+            <Route element={<ProtectedRoute><RecurringProvider><AppLayout /></RecurringProvider></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/budget" element={<Budget />} />
+              <Route path="/recurring" element={<Recurring />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/profile" element={<Profile />} />
             </Route>
