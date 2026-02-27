@@ -1,16 +1,16 @@
 {
-  "name": "BudgetFlow",
-  "short_name": "BudgetFlow",
-  "description": "Smart monthly budget tracker",
+  "name": "Budget Bro",
+  "short_name": "Budget Bro",
+  "description": "Your bro for budgeting — track income, expenses and savings with zero complexity.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f7f5f2",
   "theme_color": "#0d7a52",
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "64x64",
-      "type": "image/x-icon"
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
     }
   ]
 }

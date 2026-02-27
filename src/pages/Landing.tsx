@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, BarChart3, Shield, Smartphone, Zap, PiggyBank, Download } from 'lucide-react';
+import { ArrowRight, BarChart3, Shield, Smartphone, Zap, HandMetal, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const features = [
@@ -8,7 +8,7 @@ const features = [
   { icon: Shield, title: 'Secure & Private', desc: 'Your financial data stays yours. Encrypted and protected.' },
   { icon: Smartphone, title: 'Works Everywhere', desc: 'Installable PWA — use it on desktop, tablet, or mobile.' },
   { icon: Zap, title: 'Lightning Fast', desc: 'Add entries in seconds. No bloat, no friction.' },
-  { icon: PiggyBank, title: 'Budget Goals', desc: 'Set savings targets and track your progress month by month.' },
+  { icon: HandMetal, title: 'Budget Goals', desc: 'Set savings targets and track your progress month by month.' },
   { icon: Download, title: 'Excel Export', desc: 'Download your monthly data as a spreadsheet anytime.' },
 ];
 
@@ -20,9 +20,9 @@ export default function LandingPage() {
         <div className="container mx-auto flex items-center justify-between h-16 px-4">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-hero-gradient flex items-center justify-center">
-              <PiggyBank className="w-5 h-5 text-primary-foreground" />
+              <HandMetal className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="font-display font-bold text-lg text-foreground">BudgetFlow</span>
+            <span className="font-display font-bold text-lg text-foreground">Budget Bro</span>
           </Link>
           <div className="flex items-center gap-3">
             <Button variant="ghost" asChild><Link to="/login">Login</Link></Button>
@@ -43,7 +43,7 @@ export default function LandingPage() {
           >
             <div className="inline-flex items-center gap-2 bg-secondary rounded-full px-4 py-1.5 mb-6">
               <Zap className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-secondary-foreground">Smart budgeting made simple</span>
+              <span className="text-sm font-medium text-secondary-foreground">Your bro for budgeting 🤙</span>
             </div>
             <h1 className="text-5xl md:text-7xl font-display font-bold text-foreground leading-tight mb-6">
               Take control of your{' '}
@@ -145,7 +145,7 @@ export default function LandingPage() {
               Ready to master your budget?
             </h2>
             <p className="text-primary-foreground/80 text-lg mb-8">
-              Join thousands who've simplified their finances with BudgetFlow.
+              Join thousands who've simplified their finances with Budget Bro.
             </p>
             <Button variant="hero-outline" size="lg" className="text-base px-8 py-6" asChild>
               <Link to="/register">
@@ -159,7 +159,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-border py-8">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          © 2026 BudgetFlow. Built for smart budgeting.
+          © 2026 Budget Bro. Your money, your rules. 🤙
         </div>
       </footer>
     </div>
