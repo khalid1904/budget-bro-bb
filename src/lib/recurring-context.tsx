@@ -60,11 +60,12 @@ export function RecurringProvider({ children }: { children: React.ReactNode }) {
     today.setHours(0, 0, 0, 0);
     let generated = 0;
 
-    const startDate = new Date(rule.start_date);
-    const endDate = rule.end_date ? new Date(rule.end_date) : null;
-    const lastGen = rule.last_generated_date ? new Date(rule.last_generated_date) : null;
+    const startDate = new Date(rule.start_date + 'T00:00:00');
+    const endDate = rule.end_date ? new Date(rule.end_date + 'T00:00:00') : null;
+    const lastGen = rule.last_generated_date ? new Date(rule.last_generated_date + 'T00:00:00') : null;
 
-    if (endDate && endDate < today) return 0;
+    // Determine the upper bound: use end_date if set, otherwise today
+    const upperBound = endDate ? (endDate < today ? endDate : endDate) : today;
 
     const datesToGenerate: Date[] = [];
     let cursor = lastGen ? new Date(lastGen) : new Date(startDate);
@@ -72,7 +73,7 @@ export function RecurringProvider({ children }: { children: React.ReactNode }) {
       cursor = getNextDate(cursor, rule.frequency, rule.custom_interval_days);
     }
 
-    while (cursor <= today) {
+    while (cursor <= upperBound) {
       if (endDate && cursor > endDate) break;
       datesToGenerate.push(new Date(cursor));
       cursor = getNextDate(cursor, rule.frequency, rule.custom_interval_days);
