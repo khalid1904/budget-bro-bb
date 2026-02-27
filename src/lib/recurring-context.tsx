@@ -53,6 +53,71 @@ export function RecurringProvider({ children }: { children: React.ReactNode }) {
     if (user) refreshRules();
   }, [user, refreshRules]);
 
+  // Generate transactions for a single rule
+  const generateForRule = useCallback(async (rule: RecurringRule): Promise<number> => {
+    if (!user || !rule.is_active) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let generated = 0;
+
+    const startDate = new Date(rule.start_date);
+    const endDate = rule.end_date ? new Date(rule.end_date) : null;
+    const lastGen = rule.last_generated_date ? new Date(rule.last_generated_date) : null;
+
+    if (endDate && endDate < today) return 0;
+
+    const datesToGenerate: Date[] = [];
+    let cursor = lastGen ? new Date(lastGen) : new Date(startDate);
+    if (lastGen) {
+      cursor = getNextDate(cursor, rule.frequency, rule.custom_interval_days);
+    }
+
+    while (cursor <= today) {
+      if (endDate && cursor > endDate) break;
+      datesToGenerate.push(new Date(cursor));
+      cursor = getNextDate(cursor, rule.frequency, rule.custom_interval_days);
+      if (datesToGenerate.length > 365) break;
+    }
+
+    for (const d of datesToGenerate) {
+      const dateStr = d.toISOString().split('T')[0];
+      const month = dateStr.substring(0, 7);
+
+      const { data: existing } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('recurring_rule_id', rule.id)
+        .eq('date', dateStr)
+        .limit(1);
+
+      if (existing && existing.length > 0) continue;
+
+      await supabase.from('transactions').insert({
+        user_id: user.id,
+        title: rule.title,
+        amount: rule.amount,
+        category: rule.category,
+        type: rule.type,
+        date: dateStr,
+        month,
+        recurring_rule_id: rule.id,
+      });
+      generated++;
+    }
+
+    if (datesToGenerate.length > 0) {
+      const lastDate = datesToGenerate[datesToGenerate.length - 1].toISOString().split('T')[0];
+      await supabase.from('recurring_rules').update({ last_generated_date: lastDate }).eq('id', rule.id);
+      setRules(prev => prev.map(r => r.id === rule.id ? { ...r, last_generated_date: lastDate } : r));
+    }
+
+    if (generated > 0) {
+      await refreshTransactions();
+    }
+    return generated;
+  }, [user, refreshTransactions]);
+
   const addRule = useCallback(async (rule: Omit<RecurringRule, 'id' | 'created_at' | 'is_active' | 'last_generated_date'>) => {
     if (!user) return;
     const { data } = await supabase
@@ -61,9 +126,11 @@ export function RecurringProvider({ children }: { children: React.ReactNode }) {
       .select()
       .single();
     if (data) {
-      setRules(prev => [{ ...data, amount: Number(data.amount), type: data.type as 'incoming' | 'outgoing', frequency: data.frequency as RecurringRule['frequency'] }, ...prev]);
+      const newRule = { ...data, amount: Number(data.amount), type: data.type as 'incoming' | 'outgoing', frequency: data.frequency as RecurringRule['frequency'] };
+      setRules(prev => [newRule, ...prev]);
+      await generateForRule(newRule);
     }
-  }, [user]);
+  }, [user, generateForRule]);
 
   const updateRule = useCallback(async (id: string, updates: Partial<RecurringRule>) => {
     if (!user) return;
@@ -85,76 +152,16 @@ export function RecurringProvider({ children }: { children: React.ReactNode }) {
     setRules(prev => prev.map(r => r.id === id ? { ...r, is_active: newActive } : r));
   }, [rules, user]);
 
-  // Generate transactions from active recurring rules
+  // Generate transactions from all active recurring rules
   const generateTransactions = useCallback(async (): Promise<number> => {
     if (!user) return 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    let generated = 0;
-
     const activeRules = rules.filter(r => r.is_active);
-
+    let total = 0;
     for (const rule of activeRules) {
-      const startDate = new Date(rule.start_date);
-      const endDate = rule.end_date ? new Date(rule.end_date) : null;
-      const lastGen = rule.last_generated_date ? new Date(rule.last_generated_date) : null;
-
-      if (endDate && endDate < today) continue;
-
-      // Determine dates to generate
-      const datesToGenerate: Date[] = [];
-      let cursor = lastGen ? new Date(lastGen) : new Date(startDate);
-      if (lastGen) {
-        cursor = getNextDate(cursor, rule.frequency, rule.custom_interval_days);
-      }
-
-      while (cursor <= today) {
-        if (endDate && cursor > endDate) break;
-        datesToGenerate.push(new Date(cursor));
-        cursor = getNextDate(cursor, rule.frequency, rule.custom_interval_days);
-        if (datesToGenerate.length > 365) break; // safety limit
-      }
-
-      for (const d of datesToGenerate) {
-        const dateStr = d.toISOString().split('T')[0];
-        const month = dateStr.substring(0, 7);
-
-        // Check for existing transaction to prevent duplication
-        const { data: existing } = await supabase
-          .from('transactions')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('recurring_rule_id', rule.id)
-          .eq('date', dateStr)
-          .limit(1);
-
-        if (existing && existing.length > 0) continue;
-
-        await supabase.from('transactions').insert({
-          user_id: user.id,
-          title: rule.title,
-          amount: rule.amount,
-          category: rule.category,
-          type: rule.type,
-          date: dateStr,
-          month,
-          recurring_rule_id: rule.id,
-        });
-        generated++;
-      }
-
-      if (datesToGenerate.length > 0) {
-        const lastDate = datesToGenerate[datesToGenerate.length - 1].toISOString().split('T')[0];
-        await supabase.from('recurring_rules').update({ last_generated_date: lastDate }).eq('id', rule.id);
-        setRules(prev => prev.map(r => r.id === rule.id ? { ...r, last_generated_date: lastDate } : r));
-      }
+      total += await generateForRule(rule);
     }
-
-    if (generated > 0) {
-      await refreshTransactions();
-    }
-    return generated;
-  }, [user, rules, refreshTransactions]);
+    return total;
+  }, [user, rules, generateForRule]);
 
   // Auto-generate on load
   useEffect(() => {
