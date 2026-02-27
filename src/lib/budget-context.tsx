@@ -74,7 +74,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<Profile>({ username: '', email: '', bio: '', avatar: '💼' });
+  const [profile, setProfile] = useState<Profile>({ username: '', email: '', bio: '', avatar: '🦸' });
   const [settings, setSettings] = useState<Settings>({ default_currency: 'INR', dark_mode: false });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [customCategories, setCustomCategories] = useState<{ incoming: string[]; outgoing: string[] }>({ incoming: [], outgoing: [] });
