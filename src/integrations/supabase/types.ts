@@ -71,6 +71,57 @@ export type Database = {
         }
         Relationships: []
       }
+      recurring_rules: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          custom_interval_days: number | null
+          end_date: string | null
+          frequency: string
+          id: string
+          is_active: boolean
+          last_generated_date: string | null
+          start_date: string
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          custom_interval_days?: number | null
+          end_date?: string | null
+          frequency: string
+          id?: string
+          is_active?: boolean
+          last_generated_date?: string | null
+          start_date?: string
+          title: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          custom_interval_days?: number | null
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_generated_date?: string | null
+          start_date?: string
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount: number
@@ -79,6 +130,7 @@ export type Database = {
           date: string
           id: string
           month: string
+          recurring_rule_id: string | null
           title: string
           type: string
           updated_at: string
@@ -91,6 +143,7 @@ export type Database = {
           date?: string
           id?: string
           month: string
+          recurring_rule_id?: string | null
           title: string
           type: string
           updated_at?: string
@@ -103,12 +156,21 @@ export type Database = {
           date?: string
           id?: string
           month?: string
+          recurring_rule_id?: string | null
           title?: string
           type?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "transactions_recurring_rule_id_fkey"
+            columns: ["recurring_rule_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_rules"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_settings: {
         Row: {

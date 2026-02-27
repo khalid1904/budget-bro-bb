@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit2, Tag, TrendingUp, TrendingDown } from 'lucide-react';
+import { Plus, Trash2, Edit2, Tag, TrendingUp, TrendingDown, Repeat } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -154,6 +154,11 @@ export default function BudgetPage() {
                           <p className="font-medium text-foreground truncate">{tx.title}</p>
                           <div className="flex items-center gap-2 mt-0.5">
                             <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">{tx.category}</span>
+                            {(tx as any).recurring_rule_id && (
+                              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                                <Repeat className="w-3 h-3" /> Recurring
+                              </span>
+                            )}
                             {tx.date && <span className="text-xs text-muted-foreground">{new Date(tx.date).toLocaleDateString()}</span>}
                           </div>
                         </div>
