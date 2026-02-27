@@ -1,6 +1,6 @@
 import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, PiggyBank, Menu, X, Moon, Sun } from 'lucide-react';
+import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, HandMetal, Menu, X, Moon, Sun } from 'lucide-react';
 import { useBudget } from '@/lib/budget-context';
 import { cn } from '@/lib/utils';
 
@@ -33,9 +33,9 @@ export default function AppLayout() {
       )}>
         <div className="flex items-center gap-2 p-5 border-b border-sidebar-border">
           <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center">
-            <PiggyBank className="w-5 h-5 text-sidebar-primary-foreground" />
+            <HandMetal className="w-5 h-5 text-sidebar-primary-foreground" />
           </div>
-          <span className="font-display font-bold text-lg text-sidebar-foreground">BudgetFlow</span>
+          <span className="font-display font-bold text-lg text-sidebar-foreground">Budget Bro</span>
           <button className="ml-auto lg:hidden text-sidebar-muted hover:text-sidebar-foreground" onClick={() => setSidebarOpen(false)}>
             <X className="w-5 h-5" />
           </button>
@@ -90,7 +90,7 @@ export default function AppLayout() {
             <button onClick={() => setSidebarOpen(true)} className="text-muted-foreground hover:text-foreground">
               <Menu className="w-6 h-6" />
             </button>
-            <span className="font-display font-bold text-foreground ml-3">BudgetFlow</span>
+            <span className="font-display font-bold text-foreground ml-3">Budget Bro</span>
           </div>
         </header>
         <main className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto">

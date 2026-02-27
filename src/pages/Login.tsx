@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PiggyBank } from 'lucide-react';
+import { HandMetal } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -36,9 +36,9 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <Link to="/" className="flex items-center justify-center gap-2 mb-8">
           <div className="w-10 h-10 rounded-lg bg-hero-gradient flex items-center justify-center">
-            <PiggyBank className="w-6 h-6 text-primary-foreground" />
+            <HandMetal className="w-6 h-6 text-primary-foreground" />
           </div>
-          <span className="font-display font-bold text-2xl text-foreground">BudgetFlow</span>
+          <span className="font-display font-bold text-2xl text-foreground">Budget Bro</span>
         </Link>
         <Card className="shadow-elevated">
           <CardHeader className="text-center">
