@@ -31,7 +31,7 @@ interface RecurringContextType {
 const RecurringContext = createContext<RecurringContextType | null>(null);
 
 export function RecurringProvider({ children }: { children: React.ReactNode }) {
-  const { user, addTransaction } = useBudget();
+  const { user, refreshTransactions } = useBudget();
   const [rules, setRules] = useState<RecurringRule[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -150,8 +150,11 @@ export function RecurringProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    if (generated > 0) {
+      await refreshTransactions();
+    }
     return generated;
-  }, [user, rules]);
+  }, [user, rules, refreshTransactions]);
 
   // Auto-generate on load
   useEffect(() => {
