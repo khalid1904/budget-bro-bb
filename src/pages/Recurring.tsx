@@ -10,17 +10,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Trash2, Edit2, RefreshCw, Repeat, Pause, Play, CalendarClock } from 'lucide-react';
+import { Plus, Trash2, Edit2, RefreshCw, Repeat, Pause, CalendarClock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const FREQUENCY_LABELS: Record<string, string> = {
-  daily: 'Daily',
-  weekly: 'Weekly',
-  monthly: 'Monthly',
-  yearly: 'Yearly',
-  custom: 'Custom',
-};
+const MONTHS = [
+  { value: '01', label: 'January' }, { value: '02', label: 'February' },
+  { value: '03', label: 'March' }, { value: '04', label: 'April' },
+  { value: '05', label: 'May' }, { value: '06', label: 'June' },
+  { value: '07', label: 'July' }, { value: '08', label: 'August' },
+  { value: '09', label: 'September' }, { value: '10', label: 'October' },
+  { value: '11', label: 'November' }, { value: '12', label: 'December' },
+];
+
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: 10 }, (_, i) => String(currentYear - 2 + i));
+
+function formatMonthYear(dateStr: string) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+function getLastDayOfMonth(year: string, month: string): string {
+  const lastDay = new Date(Number(year), Number(month), 0).getDate();
+  return `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+}
 
 export default function RecurringPage() {
   const { rules, loading, addRule, updateRule, deleteRule, toggleRule, generateTransactions } = useRecurring();
@@ -33,10 +47,10 @@ export default function RecurringPage() {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [type, setType] = useState<'incoming' | 'outgoing'>('outgoing');
-  const [frequency, setFrequency] = useState<RecurringRule['frequency']>('monthly');
-  const [customDays, setCustomDays] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startMonth, setStartMonth] = useState('');
+  const [startYear, setStartYear] = useState('');
+  const [endMonth, setEndMonth] = useState('');
+  const [endYear, setEndYear] = useState('');
   const [generating, setGenerating] = useState(false);
 
   const allCategories = type === 'incoming'
@@ -45,7 +59,7 @@ export default function RecurringPage() {
 
   const resetForm = () => {
     setTitle(''); setAmount(''); setCategory(''); setType('outgoing');
-    setFrequency('monthly'); setCustomDays(''); setStartDate(''); setEndDate('');
+    setStartMonth(''); setStartYear(''); setEndMonth(''); setEndYear('');
     setEditId(null);
   };
 
@@ -57,8 +71,18 @@ export default function RecurringPage() {
     if (isNaN(amt) || amt <= 0) {
       toast({ title: 'Enter a valid amount', variant: 'destructive' }); return;
     }
-    if (frequency === 'custom' && (!customDays || parseInt(customDays) < 1)) {
-      toast({ title: 'Enter a valid custom interval', variant: 'destructive' }); return;
+    if (!startMonth || !startYear) {
+      toast({ title: 'Please select a start month and year', variant: 'destructive' }); return;
+    }
+    if (!endMonth || !endYear) {
+      toast({ title: 'Please select an end month and year', variant: 'destructive' }); return;
+    }
+
+    const startDate = `${startYear}-${startMonth}-01`;
+    const endDate = getLastDayOfMonth(endYear, endMonth);
+
+    if (endDate < startDate) {
+      toast({ title: 'End date must be after start date', variant: 'destructive' }); return;
     }
 
     const payload = {
@@ -66,10 +90,8 @@ export default function RecurringPage() {
       amount: amt,
       category,
       type,
-      frequency,
-      custom_interval_days: frequency === 'custom' ? parseInt(customDays) : null,
-      start_date: startDate || new Date().toISOString().split('T')[0],
-      end_date: endDate || null,
+      start_date: startDate,
+      end_date: endDate,
     };
 
     if (editId) {
@@ -88,10 +110,10 @@ export default function RecurringPage() {
     setAmount(String(rule.amount));
     setCategory(rule.category);
     setType(rule.type);
-    setFrequency(rule.frequency);
-    setCustomDays(rule.custom_interval_days ? String(rule.custom_interval_days) : '');
-    setStartDate(rule.start_date);
-    setEndDate(rule.end_date || '');
+    const sd = rule.start_date.split('-');
+    setStartYear(sd[0]); setStartMonth(sd[1]);
+    const ed = rule.end_date.split('-');
+    setEndYear(ed[0]); setEndMonth(ed[1]);
     setEditId(rule.id);
     setDialogOpen(true);
   };
@@ -112,7 +134,7 @@ export default function RecurringPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Recurring</h1>
-          <p className="text-muted-foreground mt-1">Manage automated income & expenses</p>
+          <p className="text-muted-foreground mt-1">Manage automated monthly income & expenses</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={handleGenerate} disabled={generating}>
@@ -155,37 +177,37 @@ export default function RecurringPage() {
                     <SelectContent>{allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>Frequency</Label>
-                    <Select value={frequency} onValueChange={(v) => setFrequency(v as RecurringRule['frequency'])}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="daily">Daily</SelectItem>
-                        <SelectItem value="weekly">Weekly</SelectItem>
-                        <SelectItem value="monthly">Monthly</SelectItem>
-                        <SelectItem value="yearly">Yearly</SelectItem>
-                        <SelectItem value="custom">Custom</SelectItem>
-                      </SelectContent>
+
+                {/* Start Date: Month + Year */}
+                <div className="space-y-2">
+                  <Label>Start Date</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select value={startMonth} onValueChange={setStartMonth}>
+                      <SelectTrigger><SelectValue placeholder="Month" /></SelectTrigger>
+                      <SelectContent>{MONTHS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select value={startYear} onValueChange={setStartYear}>
+                      <SelectTrigger><SelectValue placeholder="Year" /></SelectTrigger>
+                      <SelectContent>{YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  {frequency === 'custom' && (
-                    <div className="space-y-2">
-                      <Label>Every X days</Label>
-                      <Input type="number" value={customDays} onChange={e => setCustomDays(e.target.value)} placeholder="30" min="1" />
-                    </div>
-                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>Start Date</Label>
-                    <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>End Date (optional)</Label>
-                    <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+
+                {/* End Date: Month + Year (required) */}
+                <div className="space-y-2">
+                  <Label>End Date <span className="text-destructive">*</span></Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select value={endMonth} onValueChange={setEndMonth}>
+                      <SelectTrigger><SelectValue placeholder="Month" /></SelectTrigger>
+                      <SelectContent>{MONTHS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select value={endYear} onValueChange={setEndYear}>
+                      <SelectTrigger><SelectValue placeholder="Year" /></SelectTrigger>
+                      <SelectContent>{YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
+                    </Select>
                   </div>
                 </div>
+
                 <Button onClick={handleSubmit} className="w-full">{editId ? 'Update' : 'Create'} Rule</Button>
               </div>
             </DialogContent>
@@ -205,7 +227,7 @@ export default function RecurringPage() {
           <CardContent className="pt-5 pb-4">
             <p className="text-sm text-muted-foreground">Monthly Recurring Income</p>
             <p className="text-2xl font-display font-bold text-success">
-              {formatCurrency(activeRules.filter(r => r.type === 'incoming' && r.frequency === 'monthly').reduce((s, r) => s + r.amount, 0))}
+              {formatCurrency(activeRules.filter(r => r.type === 'incoming').reduce((s, r) => s + r.amount, 0))}
             </p>
           </CardContent>
         </Card>
@@ -213,7 +235,7 @@ export default function RecurringPage() {
           <CardContent className="pt-5 pb-4">
             <p className="text-sm text-muted-foreground">Monthly Recurring Expenses</p>
             <p className="text-2xl font-display font-bold text-destructive">
-              {formatCurrency(activeRules.filter(r => r.type === 'outgoing' && r.frequency === 'monthly').reduce((s, r) => s + r.amount, 0))}
+              {formatCurrency(activeRules.filter(r => r.type === 'outgoing').reduce((s, r) => s + r.amount, 0))}
             </p>
           </CardContent>
         </Card>
@@ -284,17 +306,14 @@ function RuleRow({ rule, onEdit, onDelete, onToggle, formatCurrency }: {
         <div className="flex items-center gap-2">
           <p className="font-medium text-foreground truncate">{rule.title}</p>
           <Badge variant="outline" className="text-xs shrink-0">
-            <Repeat className="w-3 h-3 mr-1" />
-            {FREQUENCY_LABELS[rule.frequency]}
-            {rule.frequency === 'custom' && rule.custom_interval_days ? ` (${rule.custom_interval_days}d)` : ''}
+            <Repeat className="w-3 h-3 mr-1" /> Monthly
           </Badge>
         </div>
         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
           <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">{rule.category}</span>
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             <CalendarClock className="w-3 h-3" />
-            {new Date(rule.start_date).toLocaleDateString()}
-            {rule.end_date && ` → ${new Date(rule.end_date).toLocaleDateString()}`}
+            {formatMonthYear(rule.start_date)} → {formatMonthYear(rule.end_date)}
           </span>
           <Badge variant={rule.type === 'incoming' ? 'default' : 'destructive'} className="text-xs">
             {rule.type === 'incoming' ? 'Income' : 'Expense'}

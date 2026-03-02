@@ -77,7 +77,7 @@ export type Database = {
           category: string
           created_at: string
           custom_interval_days: number | null
-          end_date: string | null
+          end_date: string
           frequency: string
           id: string
           is_active: boolean
@@ -93,8 +93,8 @@ export type Database = {
           category: string
           created_at?: string
           custom_interval_days?: number | null
-          end_date?: string | null
-          frequency: string
+          end_date: string
+          frequency?: string
           id?: string
           is_active?: boolean
           last_generated_date?: string | null
@@ -109,7 +109,7 @@ export type Database = {
           category?: string
           created_at?: string
           custom_interval_days?: number | null
-          end_date?: string | null
+          end_date?: string
           frequency?: string
           id?: string
           is_active?: boolean
