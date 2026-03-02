@@ -64,35 +64,50 @@ export function RecurringProvider({ children }: { children: React.ReactNode }) {
     today.setHours(0, 0, 0, 0);
     let generated = 0;
 
-    const startDate = new Date(rule.start_date + 'T00:00:00');
-    const endDate = new Date(rule.end_date + 'T00:00:00');
-    const lastGen = rule.last_generated_date ? new Date(rule.last_generated_date + 'T00:00:00') : null;
+    // Parse dates as local
+    const [startY, startM] = rule.start_date.split('-').map(Number);
+    const [endY, endM] = rule.end_date.split('-').map(Number);
 
-    const upperBound = endDate < today ? endDate : today;
+    const upperBound = new Date(Math.min(
+      new Date(endY, endM - 1, 1).getTime(),
+      today.getTime()
+    ));
 
+    // Build list of months to generate (each as first-of-month)
     const datesToGenerate: Date[] = [];
-    let cursor = lastGen ? new Date(lastGen) : new Date(startDate);
-    if (lastGen) {
-      cursor.setMonth(cursor.getMonth() + 1);
+    let curYear = startY;
+    let curMonth = startM; // 1-indexed
+
+    // If we have a last_generated_date, skip to the month after it
+    if (rule.last_generated_date) {
+      const [lgY, lgM] = rule.last_generated_date.split('-').map(Number);
+      curYear = lgY;
+      curMonth = lgM + 1;
+      if (curMonth > 12) { curMonth = 1; curYear++; }
     }
 
-    while (cursor <= upperBound) {
-      if (cursor > endDate) break;
-      datesToGenerate.push(new Date(cursor));
-      cursor.setMonth(cursor.getMonth() + 1);
-      if (datesToGenerate.length > 365) break;
+    while (curYear < upperBound.getFullYear() || 
+           (curYear === upperBound.getFullYear() && curMonth <= upperBound.getMonth() + 1)) {
+      // Also check we haven't passed end date
+      if (curYear > endY || (curYear === endY && curMonth > endM)) break;
+      datesToGenerate.push(new Date(curYear, curMonth - 1, 1));
+      curMonth++;
+      if (curMonth > 12) { curMonth = 1; curYear++; }
+      if (datesToGenerate.length > 120) break; // safety cap: 10 years
     }
 
     for (const d of datesToGenerate) {
-      const dateStr = d.toISOString().split('T')[0];
-      const month = dateStr.substring(0, 7);
+      const year = d.getFullYear();
+      const month = `${year}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const dateStr = `${month}-01`;
 
+      // Check for existing transaction for this rule + month
       const { data: existing } = await supabase
         .from('transactions')
         .select('id')
         .eq('user_id', user.id)
         .eq('recurring_rule_id', rule.id)
-        .eq('date', dateStr)
+        .eq('month', month)
         .limit(1);
 
       if (existing && existing.length > 0) continue;
@@ -111,7 +126,8 @@ export function RecurringProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (datesToGenerate.length > 0) {
-      const lastDate = datesToGenerate[datesToGenerate.length - 1].toISOString().split('T')[0];
+      const last = datesToGenerate[datesToGenerate.length - 1];
+      const lastDate = `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, '0')}-01`;
       await supabase.from('recurring_rules').update({ last_generated_date: lastDate }).eq('id', rule.id);
       setRules(prev => prev.map(r => r.id === rule.id ? { ...r, last_generated_date: lastDate } : r));
     }
