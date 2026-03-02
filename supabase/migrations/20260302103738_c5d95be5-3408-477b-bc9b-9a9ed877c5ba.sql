@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX idx_transactions_recurring_month ON public.transactions (recurring_rule_id, month) WHERE recurring_rule_id IS NOT NULL;
