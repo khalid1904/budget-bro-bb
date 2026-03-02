@@ -8,10 +8,9 @@ export interface RecurringRule {
   amount: number;
   category: string;
   type: 'incoming' | 'outgoing';
-  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
-  custom_interval_days?: number | null;
+  frequency: 'monthly';
   start_date: string;
-  end_date?: string | null;
+  end_date: string;
   is_active: boolean;
   last_generated_date?: string | null;
   created_at: string;
@@ -20,7 +19,7 @@ export interface RecurringRule {
 interface RecurringContextType {
   rules: RecurringRule[];
   loading: boolean;
-  addRule: (rule: Omit<RecurringRule, 'id' | 'created_at' | 'is_active' | 'last_generated_date'>) => Promise<void>;
+  addRule: (rule: Omit<RecurringRule, 'id' | 'created_at' | 'is_active' | 'last_generated_date' | 'frequency'>) => Promise<void>;
   updateRule: (id: string, updates: Partial<RecurringRule>) => Promise<void>;
   deleteRule: (id: string) => Promise<void>;
   toggleRule: (id: string) => Promise<void>;
@@ -44,7 +43,13 @@ export function RecurringProvider({ children }: { children: React.ReactNode }) {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
     if (data) {
-      setRules(data.map(r => ({ ...r, amount: Number(r.amount), type: r.type as 'incoming' | 'outgoing', frequency: r.frequency as RecurringRule['frequency'] })));
+      setRules(data.map(r => ({
+        ...r,
+        amount: Number(r.amount),
+        type: r.type as 'incoming' | 'outgoing',
+        frequency: 'monthly' as const,
+        end_date: r.end_date,
+      })));
     }
     setLoading(false);
   }, [user]);
@@ -53,7 +58,6 @@ export function RecurringProvider({ children }: { children: React.ReactNode }) {
     if (user) refreshRules();
   }, [user, refreshRules]);
 
-  // Generate transactions for a single rule
   const generateForRule = useCallback(async (rule: RecurringRule): Promise<number> => {
     if (!user || !rule.is_active) return 0;
     const today = new Date();
@@ -61,22 +65,21 @@ export function RecurringProvider({ children }: { children: React.ReactNode }) {
     let generated = 0;
 
     const startDate = new Date(rule.start_date + 'T00:00:00');
-    const endDate = rule.end_date ? new Date(rule.end_date + 'T00:00:00') : null;
+    const endDate = new Date(rule.end_date + 'T00:00:00');
     const lastGen = rule.last_generated_date ? new Date(rule.last_generated_date + 'T00:00:00') : null;
 
-    // Determine the upper bound: use end_date if set, otherwise today
-    const upperBound = endDate ? (endDate < today ? endDate : endDate) : today;
+    const upperBound = endDate < today ? endDate : today;
 
     const datesToGenerate: Date[] = [];
     let cursor = lastGen ? new Date(lastGen) : new Date(startDate);
     if (lastGen) {
-      cursor = getNextDate(cursor, rule.frequency, rule.custom_interval_days);
+      cursor.setMonth(cursor.getMonth() + 1);
     }
 
     while (cursor <= upperBound) {
-      if (endDate && cursor > endDate) break;
+      if (cursor > endDate) break;
       datesToGenerate.push(new Date(cursor));
-      cursor = getNextDate(cursor, rule.frequency, rule.custom_interval_days);
+      cursor.setMonth(cursor.getMonth() + 1);
       if (datesToGenerate.length > 365) break;
     }
 
@@ -119,15 +122,21 @@ export function RecurringProvider({ children }: { children: React.ReactNode }) {
     return generated;
   }, [user, refreshTransactions]);
 
-  const addRule = useCallback(async (rule: Omit<RecurringRule, 'id' | 'created_at' | 'is_active' | 'last_generated_date'>) => {
+  const addRule = useCallback(async (rule: Omit<RecurringRule, 'id' | 'created_at' | 'is_active' | 'last_generated_date' | 'frequency'>) => {
     if (!user) return;
     const { data } = await supabase
       .from('recurring_rules')
-      .insert({ ...rule, user_id: user.id })
+      .insert({ ...rule, frequency: 'monthly', user_id: user.id })
       .select()
       .single();
     if (data) {
-      const newRule = { ...data, amount: Number(data.amount), type: data.type as 'incoming' | 'outgoing', frequency: data.frequency as RecurringRule['frequency'] };
+      const newRule: RecurringRule = {
+        ...data,
+        amount: Number(data.amount),
+        type: data.type as 'incoming' | 'outgoing',
+        frequency: 'monthly',
+        end_date: data.end_date,
+      };
       setRules(prev => [newRule, ...prev]);
       await generateForRule(newRule);
     }
@@ -153,7 +162,6 @@ export function RecurringProvider({ children }: { children: React.ReactNode }) {
     setRules(prev => prev.map(r => r.id === id ? { ...r, is_active: newActive } : r));
   }, [rules, user]);
 
-  // Generate transactions from all active recurring rules
   const generateTransactions = useCallback(async (): Promise<number> => {
     if (!user) return 0;
     const activeRules = rules.filter(r => r.is_active);
@@ -164,30 +172,17 @@ export function RecurringProvider({ children }: { children: React.ReactNode }) {
     return total;
   }, [user, rules, generateForRule]);
 
-  // Auto-generate on load
   useEffect(() => {
     if (rules.length > 0) {
       generateTransactions();
     }
-  }, [rules.length > 0]); // only on first load with rules
+  }, [rules.length > 0]);
 
   return (
     <RecurringContext.Provider value={{ rules, loading, addRule, updateRule, deleteRule, toggleRule, generateTransactions, refreshRules }}>
       {children}
     </RecurringContext.Provider>
   );
-}
-
-function getNextDate(current: Date, frequency: string, customDays?: number | null): Date {
-  const next = new Date(current);
-  switch (frequency) {
-    case 'daily': next.setDate(next.getDate() + 1); break;
-    case 'weekly': next.setDate(next.getDate() + 7); break;
-    case 'monthly': next.setMonth(next.getMonth() + 1); break;
-    case 'yearly': next.setFullYear(next.getFullYear() + 1); break;
-    case 'custom': next.setDate(next.getDate() + (customDays || 30)); break;
-  }
-  return next;
 }
 
 export function useRecurring() {

@@ -80,7 +80,11 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [customCategories, setCustomCategories] = useState<{ incoming: string[]; outgoing: string[] }>({ incoming: [], outgoing: [] });
   const [currentMonth, setCurrentMonth] = useState(defaultMonth);
   const [isDark, setIsDark] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('darkMode') || 'false'); } catch { return false; }
+    try {
+      const stored = localStorage.getItem('darkMode');
+      if (stored !== null) return JSON.parse(stored);
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    } catch { return false; }
   });
 
   // Auth listener
@@ -110,14 +114,23 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     if (data) setProfile({ username: data.username, email: data.email, bio: data.bio, avatar: data.avatar });
   }, [user]);
 
+  const [initialSettingsLoaded, setInitialSettingsLoaded] = useState(false);
+
   const refreshSettings = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase.from('user_settings').select('*').eq('user_id', user.id).single();
     if (data) {
       setSettings({ default_currency: data.default_currency, dark_mode: data.dark_mode });
-      setIsDark(data.dark_mode);
+      // Only apply DB dark_mode on first load if no localStorage override exists
+      if (!initialSettingsLoaded) {
+        const stored = localStorage.getItem('darkMode');
+        if (stored === null) {
+          setIsDark(data.dark_mode);
+        }
+        setInitialSettingsLoaded(true);
+      }
     }
-  }, [user]);
+  }, [user, initialSettingsLoaded]);
 
   const refreshTransactions = useCallback(async () => {
     if (!user) return;

@@ -11,6 +11,15 @@
     <meta property="og:type" content="website" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#0d7a52" />
+    <script>
+      (function(){
+        try {
+          var stored = localStorage.getItem('darkMode');
+          var dark = stored !== null ? JSON.parse(stored) : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (dark) document.documentElement.classList.add('dark');
+        } catch(e){}
+      })();
+    </script>
     <meta property="og:title" content="Budget Bro — Your Money, Your Rules">
   <meta name="twitter:title" content="Budget Bro — Your Money, Your Rules">
   <meta property="og:description" content="Budget Bro helps you track income, expenses and savings with chill vibes and zero complexity.">
