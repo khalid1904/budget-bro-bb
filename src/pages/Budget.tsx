@@ -12,8 +12,23 @@ import { Plus, Trash2, Edit2, Tag, TrendingUp, TrendingDown, Repeat } from 'luci
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
+function getMonthOptions() {
+  const months: string[] = [];
+  const now = new Date();
+  for (let i = -6; i <= 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return months;
+}
+
+function formatMonth(m: string) {
+  const [y, mo] = m.split('-');
+  return new Date(+y, +mo - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
 export default function BudgetPage() {
-  const { currentMonth, transactions, addTransaction, deleteTransaction, editTransaction, customCategories, addCategory, formatCurrency } = useBudget();
+  const { currentMonth, setCurrentMonth, transactions, addTransaction, deleteTransaction, editTransaction, customCategories, addCategory, formatCurrency } = useBudget();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -25,6 +40,8 @@ export default function BudgetPage() {
   const [filterCategory, setFilterCategory] = useState('all');
   const [newCategoryDialogOpen, setNewCategoryDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+
+  const monthOptions = getMonthOptions();
 
   const allCategories = activeTab === 'incoming'
     ? [...DEFAULT_INCOMING_CATEGORIES, ...customCategories.incoming]
@@ -80,16 +97,19 @@ export default function BudgetPage() {
     toast({ title: 'Category added' });
   };
 
-  const monthLabel = (() => {
-    const [y, m] = currentMonth.split('-');
-    return new Date(+y, +m - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  })();
-
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Budget</h1>
-        <p className="text-muted-foreground mt-1">{monthLabel}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Budget</h1>
+          <p className="text-muted-foreground mt-1">Manage your monthly entries</p>
+        </div>
+        <Select value={currentMonth} onValueChange={setCurrentMonth}>
+          <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {monthOptions.map(m => <SelectItem key={m} value={m}>{formatMonth(m)}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as 'incoming' | 'outgoing'); setFilterCategory('all'); }}>
