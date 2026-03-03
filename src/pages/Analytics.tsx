@@ -2,7 +2,9 @@ import { useMemo } from 'react';
 import { useBudget } from '@/lib/budget-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line } from 'recharts';
+import { Info, ShieldCheck, Droplets, PiggyBank, TrendingUp } from 'lucide-react';
 
 const COLORS = [
   'hsl(160, 84%, 30%)', 'hsl(38, 92%, 50%)', 'hsl(200, 60%, 50%)',
@@ -10,9 +12,17 @@ const COLORS = [
   'hsl(30, 70%, 50%)', 'hsl(260, 50%, 55%)',
 ];
 
+const SAVINGS_CATEGORIES = ['Savings'];
+const INVESTMENT_CATEGORIES = ['Investments'];
+
 function formatMonthLabel(m: string) {
   const [y, mo] = m.split('-');
   return new Date(+y, +mo - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+function formatRatio(value: number, totalIncome: number): string {
+  if (totalIncome === 0) return 'N/A';
+  return `${(Math.round(value * 100) / 100).toFixed(2)}%`;
 }
 
 export default function AnalyticsPage() {
@@ -51,9 +61,58 @@ export default function AnalyticsPage() {
     }));
   }, [transactions]);
 
-  const totalInc = monthTxns.filter(t => t.type === 'incoming').reduce((s, t) => s + t.amount, 0);
-  const totalOut = monthTxns.filter(t => t.type === 'outgoing').reduce((s, t) => s + t.amount, 0);
-  const savingsRatio = totalInc > 0 ? ((totalInc - totalOut) / totalInc * 100) : 0;
+  const totalInc = useMemo(() => monthTxns.filter(t => t.type === 'incoming').reduce((s, t) => s + t.amount, 0), [monthTxns]);
+  const totalOut = useMemo(() => monthTxns.filter(t => t.type === 'outgoing').reduce((s, t) => s + t.amount, 0), [monthTxns]);
+  const inHand = totalInc - totalOut;
+
+  const savingsAmount = useMemo(() =>
+    monthTxns.filter(t => t.type === 'outgoing' && SAVINGS_CATEGORIES.includes(t.category)).reduce((s, t) => s + t.amount, 0),
+    [monthTxns]
+  );
+  const investmentAmount = useMemo(() =>
+    monthTxns.filter(t => t.type === 'outgoing' && INVESTMENT_CATEGORIES.includes(t.category)).reduce((s, t) => s + t.amount, 0),
+    [monthTxns]
+  );
+
+  const wrr = totalInc > 0 ? (inHand + savingsAmount + investmentAmount) / totalInc * 100 : 0;
+  const lrr = totalInc > 0 ? inHand / totalInc * 100 : 0;
+  const sar = totalInc > 0 ? savingsAmount / totalInc * 100 : 0;
+  const iar = totalInc > 0 ? investmentAmount / totalInc * 100 : 0;
+
+  const healthMetrics = [
+    {
+      label: 'Wealth Retention',
+      abbr: 'WRR',
+      value: wrr,
+      icon: ShieldCheck,
+      color: 'text-primary',
+      tooltip: 'Wealth Retention Ratio = (In-Hand + Savings + Investments) ÷ Total Income × 100\nShows how much income contributes to long-term wealth.',
+    },
+    {
+      label: 'Liquidity Retention',
+      abbr: 'LRR',
+      value: lrr,
+      icon: Droplets,
+      color: 'text-accent-foreground',
+      tooltip: 'Liquidity Retention Ratio = In-Hand ÷ Total Income × 100\nShows remaining liquid cash.',
+    },
+    {
+      label: 'Savings Allocation',
+      abbr: 'SAR',
+      value: sar,
+      icon: PiggyBank,
+      color: 'text-success',
+      tooltip: 'Savings Allocation Ratio = Savings ÷ Total Income × 100\nShows percentage of income saved.',
+    },
+    {
+      label: 'Investment Allocation',
+      abbr: 'IAR',
+      value: iar,
+      icon: TrendingUp,
+      color: 'text-warning',
+      tooltip: 'Investment Allocation Ratio = Investments ÷ Total Income × 100\nShows percentage of income invested.',
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -68,12 +127,57 @@ export default function AnalyticsPage() {
         </Select>
       </div>
 
+      {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="shadow-card"><CardContent className="p-5 text-center"><p className="text-sm text-muted-foreground mb-1">Income</p><p className="text-2xl font-display font-bold text-success">{formatCurrency(totalInc)}</p></CardContent></Card>
         <Card className="shadow-card"><CardContent className="p-5 text-center"><p className="text-sm text-muted-foreground mb-1">Expenses</p><p className="text-2xl font-display font-bold text-destructive">{formatCurrency(totalOut)}</p></CardContent></Card>
-        <Card className="shadow-card"><CardContent className="p-5 text-center"><p className="text-sm text-muted-foreground mb-1">Savings Ratio</p><p className={`text-2xl font-display font-bold ${savingsRatio >= 0 ? 'text-primary' : 'text-destructive'}`}>{savingsRatio.toFixed(1)}%</p></CardContent></Card>
+        <Card className="shadow-card"><CardContent className="p-5 text-center"><p className="text-sm text-muted-foreground mb-1">In Hand</p><p className={`text-2xl font-display font-bold ${inHand >= 0 ? 'text-primary' : 'text-destructive'}`}>{formatCurrency(inHand)}</p></CardContent></Card>
       </div>
 
+      {/* Financial Health Metrics */}
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="font-display flex items-center gap-2">
+            Financial Health Metrics
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p className="text-xs">These ratios measure how effectively you retain and allocate your income. Based on Savings and Investments expense categories.</p>
+              </TooltipContent>
+            </UITooltip>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {healthMetrics.map(metric => (
+              <div key={metric.abbr} className="rounded-lg border bg-card p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <metric.icon className={`w-4 h-4 ${metric.color}`} />
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{metric.abbr}</span>
+                  </div>
+                  <UITooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs whitespace-pre-line">
+                      <p className="text-xs">{metric.tooltip}</p>
+                    </TooltipContent>
+                  </UITooltip>
+                </div>
+                <p className={`text-2xl font-display font-bold ${metric.color}`}>
+                  {formatRatio(metric.value, totalInc)}
+                </p>
+                <p className="text-xs text-muted-foreground">{metric.label}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Category breakdowns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {(['incoming', 'outgoing'] as const).map(type => (
           <Card key={type} className="shadow-card">
