@@ -1,72 +1,99 @@
 
+### What I found (confirmed root cause)
+- In `src/lib/recurring-context.tsx`, `generateForRule` currently sets:
+  - `upperBound = min(end_month, today)`
+- Because of that, if the rule ends in a future month (e.g. Apr 2026) and today is Mar 2026, iteration stops at Mar.
+- So the end month is excluded by design, not by timezone.
 
-## Plan: Refactor Dark Mode, Recurring Rules Simplification
+### Refactor plan
 
-### 1. Fix Dark Mode Persistence
+## 1) Fix inclusive monthly generation (start/end month both included)
+**File:** `src/lib/recurring-context.tsx`
 
-**Current issue**: Dark mode reads from `localStorage` on init but the DB value overwrites it in `refreshSettings()`, causing flicker and reset.
+- Replace generation boundary logic to iterate **up to end month**, not up to today.
+- Use year/month integer comparison only:
+  - `while (curYear < endYear || (curYear === endYear && curMonth <= endMonth))`
+- Keep day fixed at `01` for generated entries (`YYYY-MM-01`).
+- Keep safe month increment:
+  - `curMonth++`, rollover to next year when `> 12`.
+- Continue using month key (`YYYY-MM`) for dedupe checks.
 
-**Approach**:
-- Add a blocking script in `index.html` `<head>` that reads `localStorage('darkMode')` and applies `.dark` class before React renders (prevents flicker)
-- On first visit (no localStorage value), respect `prefers-color-scheme: dark`
-- Keep localStorage as primary persistence, synced to DB for logged-in users
-- In `refreshSettings`, only apply DB dark_mode if no localStorage override exists on first load; after that, localStorage is source of truth
-- `toggleDark` already persists to both localStorage and DB — keep that
+Planned helper extraction (for safety + tests):
+- `parseYearMonth(dateStr)`
+- `compareYearMonth(a,b)`
+- `nextYearMonth(y,m)`
+- `buildMonthsInclusive(start,end,after?)`
 
-**Files**: `index.html`, `src/lib/budget-context.tsx`
+## 2) Make edit flow idempotent and correct
+**File:** `src/lib/recurring-context.tsx`
 
-### 2. Simplify Recurring Frequency to Monthly Only
+- Update `updateRule` flow:
+  1. Validate `start_date <= end_date`.
+  2. Persist rule update with `last_generated_date = null`.
+  3. Delete previously generated transactions for that rule (`recurring_rule_id = rule.id`).
+  4. Regenerate full month range from updated start/end.
+- This guarantees no stale months and no duplicate month rows after edits.
 
-**Changes**:
-- `RecurringRule` interface: change `frequency` to just `'monthly'`, remove `custom_interval_days`
-- Remove `getNextDate` switch cases for daily/weekly/yearly/custom — keep only monthly
-- Remove frequency selector from Recurring page dialog
-- Remove custom days input
-- Remove `FREQUENCY_LABELS` map, hardcode "Monthly" in badge
-- Remove `custom_interval_days` from payload/form state
-- DB migration: set all existing rules to `frequency = 'monthly'`, set `custom_interval_days = NULL`
+## 3) Ensure delete flow removes generated recurring months
+**File:** `src/lib/recurring-context.tsx` (+ DB hardening below)
 
-### 3. Month/Year Only Date Selection
+- In `deleteRule`, delete linked generated transactions first, then delete the rule.
+- Keep UI refresh after delete.
 
-**Changes**:
-- Replace date inputs with two selects: Month (Jan-Dec) and Year (e.g., 2024-2030)
-- Store start_date as `YYYY-MM-01`
-- Store end_date as last day of selected month (calculated via `new Date(year, month, 0).getDate()`)
-- Update form state from `startDate`/`endDate` strings to `startMonth`/`startYear`/`endMonth`/`endYear`
-- Update `handleEdit` to parse existing dates into month/year
-- Display dates as "MMM YYYY" format in rule rows
+## 4) Validation upgrades (frontend + backend)
+**Frontend**
+- Keep required end month/year check.
+- Keep `start <= end` check.
+- Add user-facing error when backend rejects overlapping duplicate schedule.
 
-### 4. End Date Mandatory
+**Backend (migration)**
+- Enforce monthly-only schedule at DB constraint level (replace old multi-frequency check).
+- Enforce date shape:
+  - start must be first day of month
+  - end must be last day of month
+  - start <= end
+- Add overlap guard trigger on `recurring_rules` to block duplicate overlapping schedules for same logical rule identity (user + title + type + category + amount + overlapping month range).
 
-**Changes**:
-- Remove "optional" label from end date
-- Add validation in `handleSubmit`: if no end month/year selected, show error toast
-- Update `RecurringRule` interface: `end_date` becomes required `string` (not nullable)
-- DB migration: make `end_date` NOT NULL with default for existing rows (set to start_date + 12 months for any NULL end_dates)
-- Add DB constraint or validation trigger
+## 5) Database safety changes
+**Migration file:** new SQL migration
 
-### Database Migration (single migration)
+- Keep existing unique index on transactions (`recurring_rule_id`, `month`) as primary duplicate guard.
+- Add `IF NOT EXISTS` safety for index creation (if needed).
+- Update FK behavior so deleting a recurring rule cannot orphan generated rows:
+  - move `transactions.recurring_rule_id` FK to `ON DELETE CASCADE` (or keep explicit app-delete + constraint check if you prefer conservative behavior; I’ll implement cascade for hard guarantee).
 
-```sql
--- Backfill NULL end_dates to start_date + 12 months
-UPDATE public.recurring_rules 
-SET end_date = (start_date + INTERVAL '12 months')::date 
-WHERE end_date IS NULL;
+## 6) Unit tests for recurrence logic
+**Files:**
+- `src/lib/recurrence-utils.ts` (new pure helpers)
+- `src/test/recurrence-utils.test.ts` (new tests)
 
--- Make end_date NOT NULL
-ALTER TABLE public.recurring_rules ALTER COLUMN end_date SET NOT NULL;
+Test cases:
+1. Feb 2026 → Feb 2026 = 1 month  
+2. Feb 2026 → Mar 2026 = 2 months  
+3. Feb 2026 → Apr 2026 = 3 months (inclusive end month)  
+4. Dec 2026 → Feb 2027 = 3 months (year boundary)  
+5. Leap-year February range handling  
+6. `after last_generated_date` starts from next month only  
+7. Invalid range (`start > end`) rejects
 
--- Set all frequencies to monthly
-UPDATE public.recurring_rules SET frequency = 'monthly', custom_interval_days = NULL;
+---
 
--- Set default for frequency
-ALTER TABLE public.recurring_rules ALTER COLUMN frequency SET DEFAULT 'monthly';
-```
+### Technical details (implementation-level)
+- Current bug is specifically from `min(end, today)` upper bound.
+- I will remove `today` from generation range; generation becomes deterministic based on schedule window only.
+- Regeneration on edit will be delete-then-rebuild per rule for idempotency.
+- DB constraints + unique index + overlap trigger provide defense in depth.
 
-### Files to Modify
-1. **`index.html`** — Add dark mode blocking script in `<head>`
-2. **`src/lib/budget-context.tsx`** — Fix dark mode init to respect system preference, avoid DB overwrite flicker
-3. **`src/lib/recurring-context.tsx`** — Simplify interface, remove non-monthly logic, make end_date required
-4. **`src/pages/Recurring.tsx`** — Replace frequency selector with hardcoded monthly, replace date inputs with month/year selects, make end date required with validation
-5. **Database migration** — Backfill data, enforce constraints
+---
 
+### Expected corrected output example
+For:
+- Start: Feb 2026
+- End: Apr 2026
+- Amount: 5000
+- Monthly
+
+Generated:
+- `2026-02` → 5000  
+- `2026-03` → 5000  
+- `2026-04` → 5000
