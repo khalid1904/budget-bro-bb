@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useBudget } from './budget-context';
+import { parseYearMonth, formatYearMonth, buildMonthsInclusive } from './recurrence-utils';
 
 export interface RecurringRule {
   id: string;
@@ -60,45 +61,16 @@ export function RecurringProvider({ children }: { children: React.ReactNode }) {
 
   const generateForRule = useCallback(async (rule: RecurringRule): Promise<number> => {
     if (!user || !rule.is_active) return 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     let generated = 0;
 
-    // Parse dates as local
-    const [startY, startM] = rule.start_date.split('-').map(Number);
-    const [endY, endM] = rule.end_date.split('-').map(Number);
+    const start = parseYearMonth(rule.start_date);
+    const end = parseYearMonth(rule.end_date);
+    const after = rule.last_generated_date ? parseYearMonth(rule.last_generated_date) : null;
 
-    const upperBound = new Date(Math.min(
-      new Date(endY, endM - 1, 1).getTime(),
-      today.getTime()
-    ));
+    const months = buildMonthsInclusive(start, end, after);
 
-    // Build list of months to generate (each as first-of-month)
-    const datesToGenerate: Date[] = [];
-    let curYear = startY;
-    let curMonth = startM; // 1-indexed
-
-    // If we have a last_generated_date, skip to the month after it
-    if (rule.last_generated_date) {
-      const [lgY, lgM] = rule.last_generated_date.split('-').map(Number);
-      curYear = lgY;
-      curMonth = lgM + 1;
-      if (curMonth > 12) { curMonth = 1; curYear++; }
-    }
-
-    while (curYear < upperBound.getFullYear() || 
-           (curYear === upperBound.getFullYear() && curMonth <= upperBound.getMonth() + 1)) {
-      // Also check we haven't passed end date
-      if (curYear > endY || (curYear === endY && curMonth > endM)) break;
-      datesToGenerate.push(new Date(curYear, curMonth - 1, 1));
-      curMonth++;
-      if (curMonth > 12) { curMonth = 1; curYear++; }
-      if (datesToGenerate.length > 120) break; // safety cap: 10 years
-    }
-
-    for (const d of datesToGenerate) {
-      const year = d.getFullYear();
-      const month = `${year}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    for (const ym of months) {
+      const month = formatYearMonth(ym);
       const dateStr = `${month}-01`;
 
       // Check for existing transaction for this rule + month
@@ -125,9 +97,9 @@ export function RecurringProvider({ children }: { children: React.ReactNode }) {
       generated++;
     }
 
-    if (datesToGenerate.length > 0) {
-      const last = datesToGenerate[datesToGenerate.length - 1];
-      const lastDate = `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, '0')}-01`;
+    if (months.length > 0) {
+      const lastYm = months[months.length - 1];
+      const lastDate = `${formatYearMonth(lastYm)}-01`;
       await supabase.from('recurring_rules').update({ last_generated_date: lastDate }).eq('id', rule.id);
       setRules(prev => prev.map(r => r.id === rule.id ? { ...r, last_generated_date: lastDate } : r));
     }
@@ -160,15 +132,34 @@ export function RecurringProvider({ children }: { children: React.ReactNode }) {
 
   const updateRule = useCallback(async (id: string, updates: Partial<RecurringRule>) => {
     if (!user) return;
-    await supabase.from('recurring_rules').update(updates).eq('id', id).eq('user_id', user.id);
-    setRules(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
-  }, [user]);
+    // 1. Persist update and reset last_generated_date
+    await supabase.from('recurring_rules')
+      .update({ ...updates, last_generated_date: null })
+      .eq('id', id)
+      .eq('user_id', user.id);
+    // 2. Delete all previously generated transactions for this rule
+    await supabase.from('transactions')
+      .delete()
+      .eq('recurring_rule_id', id)
+      .eq('user_id', user.id);
+    // 3. Rebuild local state
+    const updatedRule = rules.find(r => r.id === id);
+    if (updatedRule) {
+      const merged: RecurringRule = { ...updatedRule, ...updates, last_generated_date: null };
+      setRules(prev => prev.map(r => r.id === id ? merged : r));
+      // 4. Regenerate transactions for updated rule
+      await generateForRule(merged);
+    }
+  }, [user, rules, generateForRule]);
 
   const deleteRule = useCallback(async (id: string) => {
     if (!user) return;
+    // Delete generated transactions first, then the rule
+    await supabase.from('transactions').delete().eq('recurring_rule_id', id).eq('user_id', user.id);
     await supabase.from('recurring_rules').delete().eq('id', id).eq('user_id', user.id);
     setRules(prev => prev.filter(r => r.id !== id));
-  }, [user]);
+    await refreshTransactions();
+  }, [user, refreshTransactions]);
 
   const toggleRule = useCallback(async (id: string) => {
     const rule = rules.find(r => r.id === id);
