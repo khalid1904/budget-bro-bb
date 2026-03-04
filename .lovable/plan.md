@@ -1,99 +1,57 @@
 
-### What I found (confirmed root cause)
-- In `src/lib/recurring-context.tsx`, `generateForRule` currently sets:
-  - `upperBound = min(end_month, today)`
-- Because of that, if the rule ends in a future month (e.g. Apr 2026) and today is Mar 2026, iteration stops at Mar.
-- So the end month is excluded by design, not by timezone.
 
-### Refactor plan
+## Plan: Yearly Insights Dashboard with Financial Health Score
 
-## 1) Fix inclusive monthly generation (start/end month both included)
-**File:** `src/lib/recurring-context.tsx`
+### Overview
+Create a new "Yearly Insights" page with a Financial Health Score (0-100), year/financial-year selectors, yearly summaries, score component breakdowns, and auto-generated insights. The existing monthly Dashboard remains untouched.
 
-- Replace generation boundary logic to iterate **up to end month**, not up to today.
-- Use year/month integer comparison only:
-  - `while (curYear < endYear || (curYear === endYear && curMonth <= endMonth))`
-- Keep day fixed at `01` for generated entries (`YYYY-MM-01`).
-- Keep safe month increment:
-  - `curMonth++`, rollover to next year when `> 12`.
-- Continue using month key (`YYYY-MM`) for dedupe checks.
+### New Files
 
-Planned helper extraction (for safety + tests):
-- `parseYearMonth(dateStr)`
-- `compareYearMonth(a,b)`
-- `nextYearMonth(y,m)`
-- `buildMonthsInclusive(start,end,after?)`
+**1. `src/lib/financial-year-utils.ts`** — Pure utility functions
+- `getMonthRange(year, type)`: Returns array of `YYYY-MM` strings for a given year. Calendar = Jan-Dec, April-March = Apr(year)-Mar(year+1).
+- `getAvailableYears(transactions)`: Extracts distinct years from transaction data.
+- `computeYearlyMetrics(transactions, months)`: Aggregates income, expenses, savings-category, investments-category totals across the month range.
+- `computeHealthScore(metrics)`: Returns total score (0-100) + 5 component scores.
+- `generateInsights(currentMetrics, prevMetrics)`: Returns 2-3 rule-based text insights.
 
-## 2) Make edit flow idempotent and correct
-**File:** `src/lib/recurring-context.tsx`
+Score component calculations:
+- **Wealth Retention (30 pts)**: Linear scale from WRR%. >=60% = 30, scaled down proportionally.
+- **Savings Discipline (25 pts)**: Linear scale from SAR%. >=25% = 25.
+- **Investment Growth (20 pts)**: Linear scale from IAR%. >=20% = 20.
+- **Expense Stability (15 pts)**: Based on coefficient of variation of monthly expenses. CV=0 → 15, CV>=1 → 0.
+- **Liquidity Balance (10 pts)**: LRR in 15-40% sweet spot → 10. Outside range → scaled penalty.
 
-- Update `updateRule` flow:
-  1. Validate `start_date <= end_date`.
-  2. Persist rule update with `last_generated_date = null`.
-  3. Delete previously generated transactions for that rule (`recurring_rule_id = rule.id`).
-  4. Regenerate full month range from updated start/end.
-- This guarantees no stale months and no duplicate month rows after edits.
+Edge cases: <3 months data → "Insufficient Data". Income=0 → "Score Unavailable".
 
-## 3) Ensure delete flow removes generated recurring months
-**File:** `src/lib/recurring-context.tsx` (+ DB hardening below)
+**2. `src/pages/YearlyInsights.tsx`** — New page component
+- Header with title "Yearly Insights"
+- Financial Year Type toggle: "Calendar Year" | "April - March" (default: Calendar)
+- Year dropdown selector (derived from transaction data)
+- Large circular score gauge (SVG circle with stroke-dashoffset animation)
+- Score label: Weak / Moderate / Strong / Excellent
+- 5 summary cards: Total Income, Total Expenses, Total Savings, Total Investments, Net Surplus
+- 5 score component breakdown cards showing individual scores with progress bars
+- Insight panel with 2-3 auto-generated text insights
 
-- In `deleteRule`, delete linked generated transactions first, then delete the rule.
-- Keep UI refresh after delete.
+### Modified Files
 
-## 4) Validation upgrades (frontend + backend)
-**Frontend**
-- Keep required end month/year check.
-- Keep `start <= end` check.
-- Add user-facing error when backend rejects overlapping duplicate schedule.
+**3. `src/components/layout/AppLayout.tsx`**
+- Add nav item: `{ to: '/yearly', label: 'Yearly Insights', icon: Trophy }` (inserted as second item, after Dashboard)
 
-**Backend (migration)**
-- Enforce monthly-only schedule at DB constraint level (replace old multi-frequency check).
-- Enforce date shape:
-  - start must be first day of month
-  - end must be last day of month
-  - start <= end
-- Add overlap guard trigger on `recurring_rules` to block duplicate overlapping schedules for same logical rule identity (user + title + type + category + amount + overlapping month range).
+**4. `src/App.tsx`**
+- Import `YearlyInsights` page
+- Add route: `<Route path="/yearly" element={<YearlyInsights />} />`  inside protected layout
 
-## 5) Database safety changes
-**Migration file:** new SQL migration
+### Architecture
+- All scoring logic lives in `financial-year-utils.ts` (pure functions, testable)
+- Page component only handles state (year selection, FY type toggle) and renders
+- Uses existing `useBudget()` transactions array — no new DB queries needed; filters client-side by month range
+- No changes to existing Dashboard, Budget, or Analytics pages
+- No database schema changes needed
 
-- Keep existing unique index on transactions (`recurring_rule_id`, `month`) as primary duplicate guard.
-- Add `IF NOT EXISTS` safety for index creation (if needed).
-- Update FK behavior so deleting a recurring rule cannot orphan generated rows:
-  - move `transactions.recurring_rule_id` FK to `ON DELETE CASCADE` (or keep explicit app-delete + constraint check if you prefer conservative behavior; I’ll implement cascade for hard guarantee).
+### UI Design
+- Matches existing app styling (shadcn cards, font-display headings, dark mode compatible)
+- Circular score uses SVG with animated `stroke-dashoffset`
+- Color coding: Weak=red, Moderate=amber, Strong=blue, Excellent=green
+- Responsive grid layout consistent with other pages
 
-## 6) Unit tests for recurrence logic
-**Files:**
-- `src/lib/recurrence-utils.ts` (new pure helpers)
-- `src/test/recurrence-utils.test.ts` (new tests)
-
-Test cases:
-1. Feb 2026 → Feb 2026 = 1 month  
-2. Feb 2026 → Mar 2026 = 2 months  
-3. Feb 2026 → Apr 2026 = 3 months (inclusive end month)  
-4. Dec 2026 → Feb 2027 = 3 months (year boundary)  
-5. Leap-year February range handling  
-6. `after last_generated_date` starts from next month only  
-7. Invalid range (`start > end`) rejects
-
----
-
-### Technical details (implementation-level)
-- Current bug is specifically from `min(end, today)` upper bound.
-- I will remove `today` from generation range; generation becomes deterministic based on schedule window only.
-- Regeneration on edit will be delete-then-rebuild per rule for idempotency.
-- DB constraints + unique index + overlap trigger provide defense in depth.
-
----
-
-### Expected corrected output example
-For:
-- Start: Feb 2026
-- End: Apr 2026
-- Amount: 5000
-- Monthly
-
-Generated:
-- `2026-02` → 5000  
-- `2026-03` → 5000  
-- `2026-04` → 5000
