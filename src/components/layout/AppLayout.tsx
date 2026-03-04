@@ -1,11 +1,12 @@
 import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, HandMetal, Menu, X, Moon, Sun, Repeat } from 'lucide-react';
+import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, HandMetal, Menu, X, Moon, Sun, Repeat, Trophy } from 'lucide-react';
 import { useBudget } from '@/lib/budget-context';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/yearly', label: 'Yearly Insights', icon: Trophy },
   { to: '/budget', label: 'Budget', icon: ArrowUpDown },
   { to: '/recurring', label: 'Recurring', icon: Repeat },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
