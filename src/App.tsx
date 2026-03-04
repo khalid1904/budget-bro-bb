@@ -13,6 +13,7 @@ import Budget from "./pages/Budget";
 import Analytics from "./pages/Analytics";
 import Recurring from "./pages/Recurring";
 import Profile from "./pages/Profile";
+import YearlyInsights from "./pages/YearlyInsights";
 import AppLayout from "./components/layout/AppLayout";
 import NotFound from "./pages/NotFound";
 
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
             <Route element={<ProtectedRoute><RecurringProvider><AppLayout /></RecurringProvider></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/yearly" element={<YearlyInsights />} />
               <Route path="/budget" element={<Budget />} />
               <Route path="/recurring" element={<Recurring />} />
               <Route path="/analytics" element={<Analytics />} />
