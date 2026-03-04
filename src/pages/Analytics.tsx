@@ -12,8 +12,7 @@ const COLORS = [
   'hsl(30, 70%, 50%)', 'hsl(260, 50%, 55%)',
 ];
 
-const SAVINGS_CATEGORIES = ['Savings'];
-const INVESTMENT_CATEGORIES = ['Investments'];
+import { getCategoryType } from '@/lib/types';
 
 function formatMonthLabel(m: string) {
   const [y, mo] = m.split('-');
@@ -50,27 +49,28 @@ export default function AnalyticsPage() {
   }, [monthTxns]);
 
   const monthlyComparison = useMemo(() => {
-    const byMonth: Record<string, { income: number; expense: number }> = {};
+    const byMonth: Record<string, { income: number; spending: number }> = {};
     transactions.forEach(t => {
-      if (!byMonth[t.month]) byMonth[t.month] = { income: 0, expense: 0 };
+      if (!byMonth[t.month]) byMonth[t.month] = { income: 0, spending: 0 };
       if (t.type === 'incoming') byMonth[t.month].income += t.amount;
-      else byMonth[t.month].expense += t.amount;
+      else if (getCategoryType(t.category) === 'spending') byMonth[t.month].spending += t.amount;
     });
     return Object.entries(byMonth).sort(([a], [b]) => a.localeCompare(b)).slice(-12).map(([m, d]) => ({
-      month: formatMonthLabel(m), income: d.income, expense: d.expense, savings: d.income - d.expense
+      month: formatMonthLabel(m), income: d.income, spending: d.spending, surplus: d.income - d.spending
     }));
   }, [transactions]);
 
   const totalInc = useMemo(() => monthTxns.filter(t => t.type === 'incoming').reduce((s, t) => s + t.amount, 0), [monthTxns]);
   const totalOut = useMemo(() => monthTxns.filter(t => t.type === 'outgoing').reduce((s, t) => s + t.amount, 0), [monthTxns]);
+  const totalSpending = useMemo(() => monthTxns.filter(t => t.type === 'outgoing' && getCategoryType(t.category) === 'spending').reduce((s, t) => s + t.amount, 0), [monthTxns]);
   const inHand = totalInc - totalOut;
 
   const savingsAmount = useMemo(() =>
-    monthTxns.filter(t => t.type === 'outgoing' && SAVINGS_CATEGORIES.includes(t.category)).reduce((s, t) => s + t.amount, 0),
+    monthTxns.filter(t => t.type === 'outgoing' && getCategoryType(t.category) === 'savings').reduce((s, t) => s + t.amount, 0),
     [monthTxns]
   );
   const investmentAmount = useMemo(() =>
-    monthTxns.filter(t => t.type === 'outgoing' && INVESTMENT_CATEGORIES.includes(t.category)).reduce((s, t) => s + t.amount, 0),
+    monthTxns.filter(t => t.type === 'outgoing' && getCategoryType(t.category) === 'investment').reduce((s, t) => s + t.amount, 0),
     [monthTxns]
   );
 
@@ -128,9 +128,11 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card className="shadow-card"><CardContent className="p-5 text-center"><p className="text-sm text-muted-foreground mb-1">Income</p><p className="text-2xl font-display font-bold text-success">{formatCurrency(totalInc)}</p></CardContent></Card>
-        <Card className="shadow-card"><CardContent className="p-5 text-center"><p className="text-sm text-muted-foreground mb-1">Expenses</p><p className="text-2xl font-display font-bold text-destructive">{formatCurrency(totalOut)}</p></CardContent></Card>
+        <Card className="shadow-card"><CardContent className="p-5 text-center"><p className="text-sm text-muted-foreground mb-1">Spending</p><p className="text-2xl font-display font-bold text-destructive">{formatCurrency(totalSpending)}</p></CardContent></Card>
+        <Card className="shadow-card"><CardContent className="p-5 text-center"><p className="text-sm text-muted-foreground mb-1">Savings</p><p className="text-2xl font-display font-bold text-primary">{formatCurrency(savingsAmount)}</p></CardContent></Card>
+        <Card className="shadow-card"><CardContent className="p-5 text-center"><p className="text-sm text-muted-foreground mb-1">Investments</p><p className="text-2xl font-display font-bold text-warning">{formatCurrency(investmentAmount)}</p></CardContent></Card>
         <Card className="shadow-card"><CardContent className="p-5 text-center"><p className="text-sm text-muted-foreground mb-1">In Hand</p><p className={`text-2xl font-display font-bold ${inHand >= 0 ? 'text-primary' : 'text-destructive'}`}>{formatCurrency(inHand)}</p></CardContent></Card>
       </div>
 
@@ -209,7 +211,7 @@ export default function AnalyticsPage() {
 
       {monthlyComparison.length > 0 && (
         <Card className="shadow-card">
-          <CardHeader><CardTitle className="font-display">Income vs Expenses</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="font-display">Income vs Spending</CardTitle></CardHeader>
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -218,7 +220,7 @@ export default function AnalyticsPage() {
                   <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
                   <Tooltip formatter={(v: number) => formatCurrency(v)} />
                   <Bar dataKey="income" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} name="Income" />
-                  <Bar dataKey="expense" fill="hsl(0, 72%, 51%)" radius={[4, 4, 0, 0]} name="Expense" />
+                  <Bar dataKey="spending" fill="hsl(0, 72%, 51%)" radius={[4, 4, 0, 0]} name="Spending" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -236,7 +238,7 @@ export default function AnalyticsPage() {
                   <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
                   <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
                   <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                  <Line type="monotone" dataKey="savings" stroke="hsl(160, 84%, 30%)" strokeWidth={2} dot={{ r: 4 }} name="Net Savings" />
+                  <Line type="monotone" dataKey="surplus" stroke="hsl(160, 84%, 30%)" strokeWidth={2} dot={{ r: 4 }} name="Net Surplus" />
                 </LineChart>
               </ResponsiveContainer>
             </div>

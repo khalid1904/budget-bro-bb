@@ -1,10 +1,12 @@
 import type { Transaction } from '@/lib/types';
+import { SAVINGS_CATEGORIES, INVESTMENT_CATEGORIES } from '@/lib/types';
 
 export type FYType = 'calendar' | 'april-march';
 
 export interface YearlyMetrics {
   totalIncome: number;
-  totalExpenses: number;
+  totalAllocated: number;    // all outgoing (spending + savings + investments)
+  totalSpending: number;     // outgoing minus savings/investment categories
   savingsAmount: number;
   investmentAmount: number;
   inHand: number;
@@ -27,9 +29,6 @@ export interface ScoreBreakdown {
 }
 
 export type ScoreLabel = 'Weak' | 'Moderate' | 'Strong' | 'Excellent' | 'Insufficient Data' | 'Score Unavailable';
-
-const SAVINGS_CATEGORIES = ['Savings'];
-const INVESTMENT_CATEGORIES = ['Investments'];
 
 /** Returns array of YYYY-MM strings for a given year and FY type */
 export function getMonthRange(year: number, type: FYType): string[] {
@@ -73,7 +72,7 @@ export function computeYearlyMetrics(transactions: Transaction[], months: string
   const filtered = transactions.filter(t => monthSet.has(t.date.substring(0, 7)));
 
   let totalIncome = 0;
-  let totalExpenses = 0;
+  let totalAllocated = 0;
   let savingsAmount = 0;
   let investmentAmount = 0;
 
@@ -86,14 +85,15 @@ export function computeYearlyMetrics(transactions: Transaction[], months: string
     if (t.type === 'incoming') {
       totalIncome += t.amount;
     } else {
-      totalExpenses += t.amount;
+      totalAllocated += t.amount;
       expByMonth.set(month, (expByMonth.get(month) || 0) + t.amount);
       if (SAVINGS_CATEGORIES.includes(t.category)) savingsAmount += t.amount;
       if (INVESTMENT_CATEGORIES.includes(t.category)) investmentAmount += t.amount;
     }
   }
 
-  const inHand = totalIncome - totalExpenses;
+  const totalSpending = totalAllocated - savingsAmount - investmentAmount;
+  const inHand = totalIncome - totalAllocated;
   const netSurplus = inHand;
 
   // Only count months that have any transaction data
@@ -110,7 +110,8 @@ export function computeYearlyMetrics(transactions: Transaction[], months: string
 
   return {
     totalIncome: Math.round(totalIncome * 100) / 100,
-    totalExpenses: Math.round(totalExpenses * 100) / 100,
+    totalAllocated: Math.round(totalAllocated * 100) / 100,
+    totalSpending: Math.round(totalSpending * 100) / 100,
     savingsAmount: Math.round(savingsAmount * 100) / 100,
     investmentAmount: Math.round(investmentAmount * 100) / 100,
     inHand: Math.round(inHand * 100) / 100,

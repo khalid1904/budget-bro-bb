@@ -3,7 +3,8 @@ import { useBudget } from '@/lib/budget-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, TrendingDown, Wallet, Plus, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Plus, AlertTriangle, PiggyBank, BarChart3 } from 'lucide-react';
+import { getCategoryType } from '@/lib/types';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
@@ -34,6 +35,9 @@ export default function DashboardPage() {
   const monthTxns = useMemo(() => transactions.filter(t => t.month === currentMonth), [transactions, currentMonth]);
   const incoming = useMemo(() => monthTxns.filter(t => t.type === 'incoming').reduce((s, t) => s + t.amount, 0), [monthTxns]);
   const outgoing = useMemo(() => monthTxns.filter(t => t.type === 'outgoing').reduce((s, t) => s + t.amount, 0), [monthTxns]);
+  const spending = useMemo(() => monthTxns.filter(t => t.type === 'outgoing' && getCategoryType(t.category) === 'spending').reduce((s, t) => s + t.amount, 0), [monthTxns]);
+  const savings = useMemo(() => monthTxns.filter(t => t.type === 'outgoing' && getCategoryType(t.category) === 'savings').reduce((s, t) => s + t.amount, 0), [monthTxns]);
+  const investments = useMemo(() => monthTxns.filter(t => t.type === 'outgoing' && getCategoryType(t.category) === 'investment').reduce((s, t) => s + t.amount, 0), [monthTxns]);
   const inHand = incoming - outgoing;
   const isNegative = inHand < 0;
   const monthOptions = getMonthOptions();
@@ -48,11 +52,11 @@ export default function DashboardPage() {
   }, [monthTxns]);
 
   const monthlyTrend = useMemo(() => {
-    const byMonth: Record<string, { income: number; expense: number }> = {};
+    const byMonth: Record<string, { income: number; spending: number }> = {};
     transactions.forEach(t => {
-      if (!byMonth[t.month]) byMonth[t.month] = { income: 0, expense: 0 };
+      if (!byMonth[t.month]) byMonth[t.month] = { income: 0, spending: 0 };
       if (t.type === 'incoming') byMonth[t.month].income += t.amount;
-      else byMonth[t.month].expense += t.amount;
+      else if (getCategoryType(t.category) === 'spending') byMonth[t.month].spending += t.amount;
     });
     return Object.entries(byMonth).sort(([a], [b]) => a.localeCompare(b)).slice(-6).map(([m, d]) => ({
       month: formatMonth(m).split(' ')[0]?.slice(0, 3), ...d
@@ -77,10 +81,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {[
           { label: 'Total Income', value: incoming, icon: TrendingUp, color: 'text-success' },
-          { label: 'Total Expenses', value: outgoing, icon: TrendingDown, color: 'text-destructive' },
+          { label: 'Total Spending', value: spending, icon: TrendingDown, color: 'text-destructive' },
+          { label: 'Savings', value: savings, icon: PiggyBank, color: 'text-primary' },
+          { label: 'Investments', value: investments, icon: BarChart3, color: 'text-warning' },
           { label: 'In Hand', value: inHand, icon: Wallet, color: isNegative ? 'text-destructive' : 'text-primary' },
         ].map((card, i) => (
           <motion.div key={card.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
@@ -96,7 +102,7 @@ export default function DashboardPage() {
                 {card.label === 'In Hand' && isNegative && (
                   <div className="flex items-center gap-1 mt-2 text-destructive text-sm">
                     <AlertTriangle className="w-4 h-4" />
-                    <span>Deficit — expenses exceed income</span>
+                    <span>Deficit — spending exceeds income</span>
                   </div>
                 )}
               </CardContent>
@@ -155,8 +161,8 @@ export default function DashboardPage() {
                     <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                     <YAxis tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                     <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                    <Bar dataKey="income" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="expense" fill="hsl(0, 72%, 51%)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="income" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} name="Income" />
+                    <Bar dataKey="spending" fill="hsl(0, 72%, 51%)" radius={[4, 4, 0, 0]} name="Spending" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
