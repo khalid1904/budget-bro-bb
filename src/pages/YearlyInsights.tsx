@@ -57,7 +57,7 @@ export default function YearlyInsights() {
 
   const summaryCards = [
     { label: 'Total Income', value: metrics.totalIncome },
-    { label: 'Total Expenses', value: metrics.totalExpenses },
+    { label: 'Total Spending', value: metrics.totalSpending },
     { label: 'Total Savings', value: metrics.savingsAmount },
     { label: 'Total Investments', value: metrics.investmentAmount },
     { label: 'Net Surplus', value: metrics.netSurplus },

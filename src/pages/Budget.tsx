@@ -116,7 +116,7 @@ export default function BudgetPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <TabsList>
             <TabsTrigger value="incoming" className="gap-1.5"><TrendingUp className="w-4 h-4" /> Income</TabsTrigger>
-            <TabsTrigger value="outgoing" className="gap-1.5"><TrendingDown className="w-4 h-4" /> Expenses</TabsTrigger>
+            <TabsTrigger value="outgoing" className="gap-1.5"><TrendingDown className="w-4 h-4" /> Outgoing</TabsTrigger>
           </TabsList>
           <div className="flex items-center gap-2">
             <Select value={filterCategory} onValueChange={setFilterCategory}>
@@ -139,7 +139,7 @@ export default function BudgetPage() {
             <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
               <DialogTrigger asChild><Button><Plus className="w-4 h-4 mr-1" /> Add Entry</Button></DialogTrigger>
               <DialogContent>
-                <DialogHeader><DialogTitle className="font-display">{editId ? 'Edit' : 'Add'} {activeTab === 'incoming' ? 'Income' : 'Expense'}</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle className="font-display">{editId ? 'Edit' : 'Add'} {activeTab === 'incoming' ? 'Income' : 'Outgoing'} Entry</DialogTitle></DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-2"><Label>Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Monthly Salary" /></div>
                   <div className="space-y-2"><Label>Amount</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" min="0" step="0.01" /></div>
@@ -161,7 +161,7 @@ export default function BudgetPage() {
         <TabsContent value={activeTab} className="mt-4">
           <Card className="shadow-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="font-display text-lg">{activeTab === 'incoming' ? 'Income' : 'Expense'} Entries</CardTitle>
+              <CardTitle className="font-display text-lg">{activeTab === 'incoming' ? 'Income' : 'Outgoing'} Entries</CardTitle>
               <span className={`text-lg font-display font-bold ${activeTab === 'incoming' ? 'text-success' : 'text-destructive'}`}>{formatCurrency(total)}</span>
             </CardHeader>
             <CardContent>
