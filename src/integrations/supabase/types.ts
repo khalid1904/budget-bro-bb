@@ -122,12 +122,52 @@ export type Database = {
         }
         Relationships: []
       }
+      savings_goals: {
+        Row: {
+          created_at: string
+          description: string | null
+          goal_name: string
+          id: string
+          start_date: string
+          status: string
+          target_amount: number
+          target_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          goal_name: string
+          id?: string
+          start_date?: string
+          status?: string
+          target_amount: number
+          target_date?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          goal_name?: string
+          id?: string
+          start_date?: string
+          status?: string
+          target_amount?: number
+          target_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount: number
           category: string
           created_at: string
           date: string
+          goal_id: string | null
           id: string
           month: string
           recurring_rule_id: string | null
@@ -141,6 +181,7 @@ export type Database = {
           category: string
           created_at?: string
           date?: string
+          goal_id?: string | null
           id?: string
           month: string
           recurring_rule_id?: string | null
@@ -154,6 +195,7 @@ export type Database = {
           category?: string
           created_at?: string
           date?: string
+          goal_id?: string | null
           id?: string
           month?: string
           recurring_rule_id?: string | null
@@ -163,6 +205,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "transactions_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "savings_goals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "transactions_recurring_rule_id_fkey"
             columns: ["recurring_rule_id"]
