@@ -22,6 +22,17 @@ interface Transaction {
   date: string;
   type: string;
   month: string;
+  goal_id?: string | null;
+}
+
+interface SavingsGoal {
+  id: string;
+  goal_name: string;
+  target_amount: number;
+  start_date: string;
+  target_date: string | null;
+  description: string;
+  status: string;
 }
 
 interface BudgetContextType {
@@ -48,6 +59,11 @@ interface BudgetContextType {
   isDark: boolean;
   toggleDark: () => void;
   formatCurrency: (n: number) => string;
+  savingsGoals: SavingsGoal[];
+  refreshGoals: () => Promise<void>;
+  addGoal: (g: { goal_name: string; target_amount: number; target_date: string | null; description: string }) => Promise<void>;
+  editGoal: (id: string, g: Partial<SavingsGoal>) => Promise<void>;
+  deleteGoal: (id: string) => Promise<void>;
 }
 
 const BudgetContext = createContext<BudgetContextType | null>(null);
@@ -79,6 +95,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [customCategories, setCustomCategories] = useState<{ incoming: string[]; outgoing: string[] }>({ incoming: [], outgoing: [] });
   const [currentMonth, setCurrentMonth] = useState(defaultMonth);
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [isDark, setIsDark] = useState(() => {
     try {
       const stored = localStorage.getItem('darkMode');
@@ -121,7 +138,6 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     const { data } = await supabase.from('user_settings').select('*').eq('user_id', user.id).single();
     if (data) {
       setSettings({ default_currency: data.default_currency, dark_mode: data.dark_mode });
-      // Only apply DB dark_mode on first load if no localStorage override exists
       if (!initialSettingsLoaded) {
         const stored = localStorage.getItem('darkMode');
         if (stored === null) {
@@ -135,7 +151,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const refreshTransactions = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase.from('transactions').select('*').eq('user_id', user.id).order('date', { ascending: false });
-    if (data) setTransactions(data.map(t => ({ ...t, amount: Number(t.amount) })));
+    if (data) setTransactions(data.map(t => ({ ...t, amount: Number(t.amount), goal_id: (t as any).goal_id ?? null })));
   }, [user]);
 
   const refreshCategories = useCallback(async () => {
@@ -148,6 +164,20 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
+  const refreshGoals = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from('savings_goals' as any).select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+    if (data) setSavingsGoals((data as any[]).map(g => ({
+      id: g.id,
+      goal_name: g.goal_name,
+      target_amount: Number(g.target_amount),
+      start_date: g.start_date,
+      target_date: g.target_date,
+      description: g.description || '',
+      status: g.status,
+    })));
+  }, [user]);
+
   // Load data when user changes
   useEffect(() => {
     if (user) {
@@ -155,8 +185,9 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       refreshSettings();
       refreshTransactions();
       refreshCategories();
+      refreshGoals();
     }
-  }, [user, refreshProfile, refreshSettings, refreshTransactions, refreshCategories]);
+  }, [user, refreshProfile, refreshSettings, refreshTransactions, refreshCategories, refreshGoals]);
 
   const updateProfile = useCallback(async (p: Partial<Profile>) => {
     if (!user) return;
@@ -173,13 +204,18 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
 
   const addTransaction = useCallback(async (tx: Omit<Transaction, 'id'>) => {
     if (!user) return;
-    const { data } = await supabase.from('transactions').insert({ ...tx, user_id: user.id }).select().single();
-    if (data) setTransactions(prev => [{ ...data, amount: Number(data.amount) }, ...prev]);
+    const payload: any = { ...tx, user_id: user.id };
+    if (tx.goal_id) payload.goal_id = tx.goal_id;
+    const { data } = await supabase.from('transactions').insert(payload).select().single();
+    if (data) setTransactions(prev => [{ ...data, amount: Number(data.amount), goal_id: (data as any).goal_id ?? null }, ...prev]);
   }, [user]);
 
   const editTransaction = useCallback(async (id: string, updates: Partial<Transaction>) => {
     if (!user) return;
-    await supabase.from('transactions').update(updates).eq('id', id).eq('user_id', user.id);
+    const payload: any = { ...updates };
+    // Handle goal_id explicitly - allow setting to null
+    if ('goal_id' in updates) payload.goal_id = updates.goal_id || null;
+    await supabase.from('transactions').update(payload).eq('id', id).eq('user_id', user.id);
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   }, [user]);
 
@@ -193,6 +229,41 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     await supabase.from('custom_categories').insert({ user_id: user.id, name, type });
     setCustomCategories(prev => ({ ...prev, [type]: [...prev[type], name] }));
+  }, [user]);
+
+  const addGoal = useCallback(async (g: { goal_name: string; target_amount: number; target_date: string | null; description: string }) => {
+    if (!user) return;
+    const { data } = await supabase.from('savings_goals' as any).insert({
+      user_id: user.id,
+      goal_name: g.goal_name,
+      target_amount: g.target_amount,
+      target_date: g.target_date,
+      description: g.description,
+    } as any).select().single();
+    if (data) {
+      const d = data as any;
+      setSavingsGoals(prev => [{
+        id: d.id,
+        goal_name: d.goal_name,
+        target_amount: Number(d.target_amount),
+        start_date: d.start_date,
+        target_date: d.target_date,
+        description: d.description || '',
+        status: d.status,
+      }, ...prev]);
+    }
+  }, [user]);
+
+  const editGoal = useCallback(async (id: string, updates: Partial<SavingsGoal>) => {
+    if (!user) return;
+    await supabase.from('savings_goals' as any).update(updates as any).eq('id', id).eq('user_id', user.id);
+    setSavingsGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g));
+  }, [user]);
+
+  const deleteGoal = useCallback(async (id: string) => {
+    if (!user) return;
+    await supabase.from('savings_goals' as any).delete().eq('id', id).eq('user_id', user.id);
+    setSavingsGoals(prev => prev.filter(g => g.id !== id));
   }, [user]);
 
   const signOut = useCallback(async () => {
@@ -217,7 +288,8 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       user, session, loading, profile, settings, transactions, customCategories,
       currentMonth, setCurrentMonth, refreshProfile, refreshSettings, refreshTransactions, refreshCategories,
       updateProfile, updateSettings, addTransaction, editTransaction, deleteTransaction,
-      addCategory, signOut, isDark, toggleDark, formatCurrency
+      addCategory, signOut, isDark, toggleDark, formatCurrency,
+      savingsGoals, refreshGoals, addGoal, editGoal, deleteGoal,
     }}>
       {children}
     </BudgetContext.Provider>

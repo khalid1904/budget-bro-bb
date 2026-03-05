@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useBudget } from '@/lib/budget-context';
-import { DEFAULT_INCOMING_CATEGORIES, DEFAULT_OUTGOING_CATEGORIES } from '@/lib/types';
+import { DEFAULT_INCOMING_CATEGORIES, DEFAULT_OUTGOING_CATEGORIES, getCategoryType } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit2, Tag, TrendingUp, TrendingDown, Repeat } from 'lucide-react';
+import { Plus, Trash2, Edit2, Tag, TrendingUp, TrendingDown, Repeat, Target } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -28,7 +28,7 @@ function formatMonth(m: string) {
 }
 
 export default function BudgetPage() {
-  const { currentMonth, setCurrentMonth, transactions, addTransaction, deleteTransaction, editTransaction, customCategories, addCategory, formatCurrency } = useBudget();
+  const { currentMonth, setCurrentMonth, transactions, addTransaction, deleteTransaction, editTransaction, customCategories, addCategory, formatCurrency, savingsGoals } = useBudget();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -37,6 +37,7 @@ export default function BudgetPage() {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [date, setDate] = useState('');
+  const [goalId, setGoalId] = useState<string>('none');
   const [filterCategory, setFilterCategory] = useState('all');
   const [newCategoryDialogOpen, setNewCategoryDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -46,6 +47,9 @@ export default function BudgetPage() {
   const allCategories = activeTab === 'incoming'
     ? [...DEFAULT_INCOMING_CATEGORIES, ...customCategories.incoming]
     : [...DEFAULT_OUTGOING_CATEGORIES, ...customCategories.outgoing];
+
+  const isSavingsCategory = activeTab === 'outgoing' && getCategoryType(category) === 'savings';
+  const activeGoals = useMemo(() => savingsGoals.filter(g => g.status === 'active'), [savingsGoals]);
 
   const filteredTxns = useMemo(() =>
     transactions
@@ -60,7 +64,7 @@ export default function BudgetPage() {
     [transactions, currentMonth, activeTab]
   );
 
-  const resetForm = () => { setTitle(''); setAmount(''); setCategory(''); setDate(''); setEditId(null); };
+  const resetForm = () => { setTitle(''); setAmount(''); setCategory(''); setDate(''); setEditId(null); setGoalId('none'); };
 
   const handleSubmit = async () => {
     if (!title.trim() || !amount || !category) {
@@ -71,11 +75,13 @@ export default function BudgetPage() {
       toast({ title: 'Enter a valid amount', variant: 'destructive' }); return;
     }
     const txDate = date || new Date().toISOString().split('T')[0];
+    const txGoalId = isSavingsCategory && goalId !== 'none' ? goalId : null;
+
     if (editId) {
-      await editTransaction(editId, { title: title.trim(), amount: amt, category, date: txDate });
+      await editTransaction(editId, { title: title.trim(), amount: amt, category, date: txDate, goal_id: txGoalId });
       toast({ title: 'Entry updated' });
     } else {
-      await addTransaction({ title: title.trim(), amount: amt, category, date: txDate, type: activeTab, month: currentMonth });
+      await addTransaction({ title: title.trim(), amount: amt, category, date: txDate, type: activeTab, month: currentMonth, goal_id: txGoalId });
       toast({ title: 'Entry added' });
     }
     resetForm();
@@ -86,6 +92,7 @@ export default function BudgetPage() {
     const tx = transactions.find(t => t.id === id);
     if (!tx) return;
     setTitle(tx.title); setAmount(String(tx.amount)); setCategory(tx.category); setDate(tx.date); setEditId(id);
+    setGoalId(tx.goal_id || 'none');
     setDialogOpen(true);
   };
 
@@ -95,6 +102,12 @@ export default function BudgetPage() {
     setNewCategoryName('');
     setNewCategoryDialogOpen(false);
     toast({ title: 'Category added' });
+  };
+
+  // Helper to find goal name for a transaction
+  const getGoalName = (gId: string | null | undefined) => {
+    if (!gId) return null;
+    return savingsGoals.find(g => g.id === gId)?.goal_name || null;
   };
 
   return (
@@ -145,11 +158,23 @@ export default function BudgetPage() {
                   <div className="space-y-2"><Label>Amount</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" min="0" step="0.01" /></div>
                   <div className="space-y-2">
                     <Label>Category</Label>
-                    <Select value={category} onValueChange={setCategory}>
+                    <Select value={category} onValueChange={(v) => { setCategory(v); if (getCategoryType(v) !== 'savings') setGoalId('none'); }}>
                       <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                       <SelectContent>{allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
+                  {isSavingsCategory && activeGoals.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Savings Goal (optional)</Label>
+                      <Select value={goalId} onValueChange={setGoalId}>
+                        <SelectTrigger><SelectValue placeholder="Link to a goal" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No Goal</SelectItem>
+                          {activeGoals.map(g => <SelectItem key={g.id} value={g.id}>{g.goal_name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <div className="space-y-2"><Label>Date (optional)</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
                   <Button onClick={handleSubmit} className="w-full">{editId ? 'Update' : 'Add'} Entry</Button>
                 </div>
@@ -172,11 +197,16 @@ export default function BudgetPage() {
                       <motion.div key={tx.id} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="flex items-center justify-between py-3 gap-3">
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-foreground truncate">{tx.title}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">{tx.category}</span>
                             {(tx as any).recurring_rule_id && (
                               <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-0.5">
                                 <Repeat className="w-3 h-3" /> Recurring
+                              </span>
+                            )}
+                            {getGoalName(tx.goal_id) && (
+                              <span className="text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                                <Target className="w-3 h-3" /> {getGoalName(tx.goal_id)}
                               </span>
                             )}
                             {tx.date && <span className="text-xs text-muted-foreground">{new Date(tx.date).toLocaleDateString()}</span>}

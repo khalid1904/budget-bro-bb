@@ -14,6 +14,7 @@ import Analytics from "./pages/Analytics";
 import Recurring from "./pages/Recurring";
 import Profile from "./pages/Profile";
 import YearlyInsights from "./pages/YearlyInsights";
+import SavingsGoals from "./pages/SavingsGoals";
 import AppLayout from "./components/layout/AppLayout";
 import NotFound from "./pages/NotFound";
 
@@ -47,6 +48,7 @@ const App = () => (
               <Route path="/yearly" element={<YearlyInsights />} />
               <Route path="/budget" element={<Budget />} />
               <Route path="/recurring" element={<Recurring />} />
+              <Route path="/savings-goals" element={<SavingsGoals />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/profile" element={<Profile />} />
             </Route>
