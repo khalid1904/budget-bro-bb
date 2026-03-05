@@ -1,86 +1,66 @@
 
 
-## Plan: Financial Terminology Refactor — Spending / Savings / Investments
+## Plan: Savings Goals Feature
 
-### Summary
-Rename "Expenses" → "Spending" across the app, and properly classify outgoing categories into three types: **spending**, **savings**, **investment**. Currently all outgoing money is lumped as "Expenses". The category classification will be done via a hardcoded mapping (no DB schema change needed) since categories are already known strings.
+### Overview
+Add a Savings Goals system: new DB table, a dedicated page to manage goals, and integration into the Budget page so savings transactions can optionally link to a goal. Progress is always calculated dynamically from linked transactions.
 
-### Approach: Category Type Mapping (No DB Change)
+### Database Changes
 
-Rather than adding a `category_type` column to the DB (which would require migrating existing data and changing insert flows), I'll create a **category type resolver** — a utility function that maps category names to their type:
+**1. New table: `savings_goals`**
+```sql
+CREATE TABLE public.savings_goals (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  goal_name text NOT NULL,
+  target_amount numeric NOT NULL,
+  start_date date NOT NULL DEFAULT CURRENT_DATE,
+  target_date date,
+  description text DEFAULT '',
+  status text NOT NULL DEFAULT 'active',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.savings_goals ENABLE ROW LEVEL SECURITY;
+-- RLS: users CRUD own goals
+```
 
-- **savings**: `['Savings']`
-- **investment**: `['Investments']`  
-- **spending**: everything else (default)
+**2. Add `goal_id` column to `transactions`**
+```sql
+ALTER TABLE public.transactions ADD COLUMN goal_id uuid REFERENCES public.savings_goals(id) ON DELETE SET NULL;
+```
+This is nullable — only savings-category transactions will use it.
 
-This is the same approach already used in Analytics and YearlyInsights (hardcoded `SAVINGS_CATEGORIES` / `INVESTMENT_CATEGORIES`), but centralized into one place.
+### New Files
 
-### Files to Change
+**1. `src/pages/SavingsGoals.tsx`** — Goals management page
+- List all goals as cards with: name, target, saved amount (dynamic sum), remaining, progress bar, deadline info, status badge
+- Create Goal dialog: name, target amount, optional deadline, optional description
+- Edit/Pause/Resume/Delete actions per goal
+- Progress bar using existing `Progress` component
+- If goal reaches target, prompt to mark complete
 
-**1. `src/lib/types.ts`** — Add centralized category type constants
-- Add `SAVINGS_CATEGORIES`, `INVESTMENT_CATEGORIES` constants
-- Add `getCategoryType(category: string): 'spending' | 'savings' | 'investment'` helper
-- Rename `DEFAULT_OUTGOING_CATEGORIES` label references won't change (the category names stay the same)
+**2. No separate service file needed** — goal progress is a simple query/filter on transactions with matching `goal_id`
 
-**2. `src/pages/Dashboard.tsx`** — Terminology changes only
-- "Total Expenses" → "Total Spending" (card label)
-- "expenses exceed income" → "spending exceeds income"
-- Add Total Savings + Total Investments summary cards (expand from 3 → 5 cards, or keep 3 and show spending-only in the expense card)
-- Actually, to keep Dashboard simple per user request ("Do not modify existing Dashboard"), I'll only rename labels: "Expenses" → "Spending". The Dashboard structure stays the same.
-- "outgoing by Category" chart title → "Outgoing by Category" (already says this, fine)
-- Bar chart legend: "expense" → "spending"
+### Modified Files
 
-**3. `src/pages/Budget.tsx`** — Tab label change
-- TabsTrigger: "Expenses" → "Spending" (line 119)
-- Dialog title: "Expense" → "Spending Entry" 
-- Card title: "Expense Entries" → "Spending Entries"... Wait, this tab shows ALL outgoing including Savings/Investments. The tab should probably remain "Outgoing" to be accurate, or be relabeled to "Outgoing" since it contains spending + savings + investments.
+**3. `src/pages/Budget.tsx`**
+- When adding/editing an outgoing entry with a savings category, show an optional "Goal" dropdown listing active savings goals
+- Pass `goal_id` in the transaction insert/update
 
-Let me reconsider: The Budget page's "outgoing" tab shows all outgoing entries. Renaming to "Spending" would be inaccurate since it includes Savings/Investments entries. Better to rename the tab to **"Outgoing"** and keep the card totals showing the breakdown.
+**4. `src/lib/budget-context.tsx`**
+- Add `savingsGoals` state + `refreshGoals()`, `addGoal()`, `editGoal()`, `deleteGoal()` methods
+- Update `addTransaction`/`editTransaction` to accept optional `goal_id`
 
-**4. `src/pages/Analytics.tsx`** — Update summary card + chart labels
-- "Expenses" summary card → "Total Spending" (showing only spending-type outgoing)
-- Add separate summary cards for Savings and Investments (already calculated)
-- Update "Income vs Expenses" chart → "Income vs Spending"
-- Update bar chart data key from `expense` to `spending`
+**5. `src/components/layout/AppLayout.tsx`**
+- Add nav item: `{ to: '/savings-goals', label: 'Savings Goals', icon: Target }`
 
-**5. `src/pages/YearlyInsights.tsx`** — Update summary card label
-- "Total Expenses" → "Total Spending"
+**6. `src/App.tsx`**
+- Add route: `<Route path="/savings-goals" element={<SavingsGoals />} />`
 
-**6. `src/lib/financial-year-utils.ts`** — Rename `totalExpenses` field
-- Rename to `totalSpending` in `YearlyMetrics` interface  
-- Import category type helper from types.ts instead of hardcoded arrays
-- Actually, `totalExpenses` in this file represents ALL outgoing (spending + savings + investments). To be accurate per the new model: add a `totalSpending` that excludes savings/investments, keep `totalExpenses` as `totalAllocated` or compute it.
-
-### Refined Plan
-
-**Core change**: Centralize category type classification, then update labels across 5 files.
-
-| File | Changes |
-|------|---------|
-| `src/lib/types.ts` | Add `SAVINGS_CATEGORIES`, `INVESTMENT_CATEGORIES`, `getCategoryType()` |
-| `src/lib/financial-year-utils.ts` | Import from types.ts, add `totalSpending` field, rename `totalExpenses` → `totalAllocated` |
-| `src/pages/Dashboard.tsx` | "Total Expenses" → "Total Spending", compute spending-only total, bar chart "expense" → "spending" |
-| `src/pages/Budget.tsx` | Tab: "Expenses" → "Outgoing", dialog/card titles updated |
-| `src/pages/Analytics.tsx` | Summary: add Spending/Savings/Investments cards, chart labels updated, remove hardcoded category arrays |
-| `src/pages/YearlyInsights.tsx` | "Total Expenses" → "Total Spending", use new field names |
-
-### Calculation Changes
-
-**Dashboard** summary cards become:
-- Total Income (unchanged)
-- Total Spending (outgoing minus savings/investment categories)  
-- In Hand = Income − All Outgoing (unchanged calculation, just renamed context)
-
-Actually, the user says: *"Remaining Cash (In-Hand) = Total Income − Total Allocated"* where Total Allocated = Spending + Savings + Investments. This is the same as the current calculation (Income − all outgoing). So **In Hand calculation doesn't change**, only labels.
-
-**Dashboard**: Keep 3 cards but change middle card from "Total Expenses" (all outgoing) to "Total Spending" (only spending-type categories). Then In Hand = Income − (Spending + Savings + Investments) = Income − all outgoing. This creates a discrepancy if we only show Spending but In Hand accounts for all outgoing.
-
-Better approach per the user's request: Show **4-5 summary cards** where needed:
-- Dashboard: Income, Spending, Savings, Investments, In Hand (5 cards)
-- Or keep Dashboard minimal with just Income, Total Allocated, In Hand
-
-I'll go with: **Dashboard gets 5 cards** (Income, Spending, Savings, Investments, In Hand) to properly reflect the new financial model.
-
-### No Database Changes Required
-Category types are determined by category name mapping. Existing data works as-is with default fallback to "spending".
+### Key Design Decisions
+- **Dynamic calculation only**: `saved_amount` is never stored — always `SUM(amount) FROM transactions WHERE goal_id = X`
+- **Category enforcement**: Goal dropdown only appears when selected category is in `SAVINGS_CATEGORIES`
+- **Status logic**: Active (default), Completed (manual or auto when target reached), Paused (manual toggle)
+- **Edge cases**: Deleting/editing linked transactions automatically recalculates progress. Deleting a goal sets `goal_id = NULL` on linked transactions (ON DELETE SET NULL).
 
