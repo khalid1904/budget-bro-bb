@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useBudget } from '@/lib/budget-context';
 import { DEFAULT_INCOMING_CATEGORIES, DEFAULT_OUTGOING_CATEGORIES, getCategoryType } from '@/lib/types';
+import { getCategoryIcon } from '@/lib/category-icons';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -104,7 +105,6 @@ export default function BudgetPage() {
     toast({ title: 'Category added' });
   };
 
-  // Helper to find goal name for a transaction
   const getGoalName = (gId: string | null | undefined) => {
     if (!gId) return null;
     return savingsGoals.find(g => g.id === gId)?.goal_name || null;
@@ -127,7 +127,7 @@ export default function BudgetPage() {
 
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as 'incoming' | 'outgoing'); setFilterCategory('all'); }}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <TabsList>
+          <TabsList className="bg-muted">
             <TabsTrigger value="incoming" className="gap-1.5"><TrendingUp className="w-4 h-4" /> Income</TabsTrigger>
             <TabsTrigger value="outgoing" className="gap-1.5"><TrendingDown className="w-4 h-4" /> Outgoing</TabsTrigger>
           </TabsList>
@@ -150,7 +150,7 @@ export default function BudgetPage() {
               </DialogContent>
             </Dialog>
             <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
-              <DialogTrigger asChild><Button><Plus className="w-4 h-4 mr-1" /> Add Entry</Button></DialogTrigger>
+              <DialogTrigger asChild><Button className="sm:w-auto w-full"><Plus className="w-4 h-4 mr-1" /> Add Entry</Button></DialogTrigger>
               <DialogContent>
                 <DialogHeader><DialogTitle className="font-display">{editId ? 'Edit' : 'Add'} {activeTab === 'incoming' ? 'Income' : 'Outgoing'} Entry</DialogTitle></DialogHeader>
                 <div className="space-y-4">
@@ -191,34 +191,42 @@ export default function BudgetPage() {
             </CardHeader>
             <CardContent>
               {filteredTxns.length > 0 ? (
-                <div className="divide-y divide-border">
+                <div className="space-y-2">
                   <AnimatePresence>
-                    {filteredTxns.map(tx => (
-                      <motion.div key={tx.id} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="flex items-center justify-between py-3 gap-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-foreground truncate">{tx.title}</p>
-                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">{tx.category}</span>
-                            {(tx as any).recurring_rule_id && (
-                              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-0.5">
-                                <Repeat className="w-3 h-3" /> Recurring
-                              </span>
-                            )}
-                            {getGoalName(tx.goal_id) && (
-                              <span className="text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded-full flex items-center gap-0.5">
-                                <Target className="w-3 h-3" /> {getGoalName(tx.goal_id)}
-                              </span>
-                            )}
-                            {tx.date && <span className="text-xs text-muted-foreground">{new Date(tx.date).toLocaleDateString()}</span>}
+                    {filteredTxns.map(tx => {
+                      const catIcon = getCategoryIcon(tx.category);
+                      const IconComp = catIcon.icon;
+                      return (
+                        <motion.div key={tx.id} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                          className="flex items-center gap-3 py-3 border-b border-border last:border-0">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: catIcon.bg }}>
+                            <IconComp className="w-5 h-5" style={{ color: catIcon.fg }} />
                           </div>
-                        </div>
-                        <span className={`font-display font-semibold whitespace-nowrap ${activeTab === 'incoming' ? 'text-success' : 'text-destructive'}`}>{formatCurrency(tx.amount)}</span>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(tx.id)}><Edit2 className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={async () => { await deleteTransaction(tx.id); toast({ title: 'Entry deleted' }); }}><Trash2 className="w-4 h-4" /></Button>
-                        </div>
-                      </motion.div>
-                    ))}
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-foreground truncate">{tx.title}</p>
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              <span className="text-xs text-muted-foreground">{tx.category}</span>
+                              {(tx as any).recurring_rule_id && (
+                                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                                  <Repeat className="w-3 h-3" /> Recurring
+                                </span>
+                              )}
+                              {getGoalName(tx.goal_id) && (
+                                <span className="text-xs bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                                  <Target className="w-3 h-3" /> {getGoalName(tx.goal_id)}
+                                </span>
+                              )}
+                              {tx.date && <span className="text-xs text-muted-foreground">{new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                            </div>
+                          </div>
+                          <span className={`font-display font-semibold whitespace-nowrap ${activeTab === 'incoming' ? 'text-success' : 'text-destructive'}`}>{formatCurrency(tx.amount)}</span>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(tx.id)}><Edit2 className="w-4 h-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={async () => { await deleteTransaction(tx.id); toast({ title: 'Entry deleted' }); }}><Trash2 className="w-4 h-4" /></Button>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
                   </AnimatePresence>
                 </div>
               ) : (
