@@ -1,66 +1,84 @@
 
 
-## Plan: Savings Goals Feature
+## Plan: UI/UX Revamp — Inspired by Reference Design
 
-### Overview
-Add a Savings Goals system: new DB table, a dedicated page to manage goals, and integration into the Budget page so savings transactions can optionally link to a goal. Progress is always calculated dynamically from linked transactions.
+### Design Direction (from reference image)
+The reference shows a clean, modern budget app with: warm orange/coral accent color, personalized casual greeting ("Yo, [Name]!"), prominent circular donut chart for budget summary, transaction list with colored category icons, spacious white cards with soft shadows, and a polished mobile-first feel.
 
-### Database Changes
+### Color Theme Change
+**File: `src/index.css`** — Update CSS variables
+- Primary: emerald/teal → warm orange/coral (`24 95% 53%` / `#F97316`-ish)
+- Keep success green, destructive red
+- Accent: adjust to complement orange
+- Sidebar: dark charcoal/slate instead of dark teal
+- Card shadows: softer, more elevated feel
+- Border radius: increase to `1rem` for rounder cards
+- Update gradient vars to orange-based
 
-**1. New table: `savings_goals`**
-```sql
-CREATE TABLE public.savings_goals (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
-  goal_name text NOT NULL,
-  target_amount numeric NOT NULL,
-  start_date date NOT NULL DEFAULT CURRENT_DATE,
-  target_date date,
-  description text DEFAULT '',
-  status text NOT NULL DEFAULT 'active',
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-ALTER TABLE public.savings_goals ENABLE ROW LEVEL SECURITY;
--- RLS: users CRUD own goals
-```
+### Tailwind Config
+**File: `tailwind.config.ts`** — No structural changes needed (colors come from CSS vars)
 
-**2. Add `goal_id` column to `transactions`**
-```sql
-ALTER TABLE public.transactions ADD COLUMN goal_id uuid REFERENCES public.savings_goals(id) ON DELETE SET NULL;
-```
-This is nullable — only savings-category transactions will use it.
+### Sidebar & Layout Revamp
+**File: `src/components/layout/AppLayout.tsx`**
+- Lighter sidebar on desktop (white/light gray instead of dark), matching reference
+- Cleaner nav items with icon-only collapsed state consideration
+- User profile avatar more prominent at bottom
+- Mobile header: cleaner with brand mark
 
-### New Files
+### Dashboard Redesign
+**File: `src/pages/Dashboard.tsx`**
+- Add personalized greeting: "Yo, {username}! Your financial overview. 📈" (matching reference tone)
+- Replace summary grid cards with a hero section: large donut chart showing total budget allocation (like "Total Budget Spent" in reference) + summary sidebar
+- Recent transactions list below with colored category icon circles (each category gets a color-coded round icon)
+- Monthly trend chart stays but with updated colors (orange bars)
+- 5 summary cards → redesigned as a compact "Overview" panel
 
-**1. `src/pages/SavingsGoals.tsx`** — Goals management page
-- List all goals as cards with: name, target, saved amount (dynamic sum), remaining, progress bar, deadline info, status badge
-- Create Goal dialog: name, target amount, optional deadline, optional description
-- Edit/Pause/Resume/Delete actions per goal
-- Progress bar using existing `Progress` component
-- If goal reaches target, prompt to mark complete
+### Budget Page Polish
+**File: `src/pages/Budget.tsx`**
+- Transaction rows: add colored category icon circles (round colored backgrounds with category icons)
+- "Add Entry" button: orange/coral CTA style, full-width on mobile
+- Cleaner tab styling
 
-**2. No separate service file needed** — goal progress is a simple query/filter on transactions with matching `goal_id`
+### Landing Page Update
+**File: `src/pages/Landing.tsx`**
+- Update hero gradient to orange
+- Update preview mock data colors
+- CTA buttons in orange
 
-### Modified Files
+### Login/Register Pages
+**Files: `src/pages/Login.tsx`, `src/pages/Register.tsx`**
+- Brand icon color update (follows new primary)
+- No structural changes
 
-**3. `src/pages/Budget.tsx`**
-- When adding/editing an outgoing entry with a savings category, show an optional "Goal" dropdown listing active savings goals
-- Pass `goal_id` in the transaction insert/update
+### Analytics, YearlyInsights, SavingsGoals, Recurring, Profile
+- Update chart colors to use new orange palette
+- Score gauge color in YearlyInsights updates via CSS vars
+- No structural changes — just inherits new theme
 
-**4. `src/lib/budget-context.tsx`**
-- Add `savingsGoals` state + `refreshGoals()`, `addGoal()`, `editGoal()`, `deleteGoal()` methods
-- Update `addTransaction`/`editTransaction` to accept optional `goal_id`
+### Category Icons Map (New)
+**File: `src/lib/category-icons.ts`** — New utility
+- Map category names to Lucide icons + background colors for the colored circle treatment
+- e.g., `Groceries → { icon: ShoppingCart, bg: '#10B981' }`, `Dining Out → { icon: Utensils, bg: '#F59E0B' }`
+- Used across Dashboard and Budget transaction lists
 
-**5. `src/components/layout/AppLayout.tsx`**
-- Add nav item: `{ to: '/savings-goals', label: 'Savings Goals', icon: Target }`
+### Summary of Changes
 
-**6. `src/App.tsx`**
-- Add route: `<Route path="/savings-goals" element={<SavingsGoals />} />`
+| File | Type | What Changes |
+|------|------|-------------|
+| `src/index.css` | Edit | Color scheme: orange primary, lighter feel, rounder radius |
+| `src/lib/category-icons.ts` | New | Category → icon + color mapping |
+| `src/components/layout/AppLayout.tsx` | Edit | Lighter sidebar, cleaner styling |
+| `src/pages/Dashboard.tsx` | Edit | Greeting header, donut hero, colored transaction list |
+| `src/pages/Budget.tsx` | Edit | Colored category icons on entries, CTA styling |
+| `src/pages/Landing.tsx` | Edit | Orange theme, updated preview |
+| `src/pages/Login.tsx` | Edit | Theme color inheritance |
+| `src/pages/Register.tsx` | Edit | Theme color inheritance |
+| `src/pages/Analytics.tsx` | Edit | Chart colors to orange palette |
+| `src/pages/Recurring.tsx` | Edit | Minor label + color updates |
+| `src/pages/YearlyInsights.tsx` | Edit | Inherits new colors |
+| `src/pages/SavingsGoals.tsx` | Edit | Inherits new colors |
+| `src/pages/Profile.tsx` | Edit | Inherits new colors |
 
-### Key Design Decisions
-- **Dynamic calculation only**: `saved_amount` is never stored — always `SUM(amount) FROM transactions WHERE goal_id = X`
-- **Category enforcement**: Goal dropdown only appears when selected category is in `SAVINGS_CATEGORIES`
-- **Status logic**: Active (default), Completed (manual or auto when target reached), Paused (manual toggle)
-- **Edge cases**: Deleting/editing linked transactions automatically recalculates progress. Deleting a goal sets `goal_id = NULL` on linked transactions (ON DELETE SET NULL).
+### All existing features preserved
+No logic, calculations, database, or routing changes. Pure visual/UX layer update.
 
