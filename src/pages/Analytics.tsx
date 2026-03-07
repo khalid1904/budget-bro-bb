@@ -7,9 +7,9 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { Info, ShieldCheck, Droplets, PiggyBank, TrendingUp } from 'lucide-react';
 
 const COLORS = [
-  'hsl(24, 95%, 53%)', 'hsl(142, 71%, 45%)', 'hsl(200, 60%, 50%)',
+  'hsl(160, 84%, 39%)', 'hsl(142, 71%, 45%)', 'hsl(200, 60%, 50%)',
   'hsl(280, 60%, 50%)', 'hsl(340, 60%, 50%)', 'hsl(38, 92%, 50%)',
-  'hsl(160, 60%, 40%)', 'hsl(260, 50%, 55%)',
+  'hsl(170, 60%, 40%)', 'hsl(260, 50%, 55%)',
 ];
 
 import { getCategoryType } from '@/lib/types';
