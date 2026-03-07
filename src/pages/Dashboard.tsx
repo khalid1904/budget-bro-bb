@@ -11,7 +11,7 @@ import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 
 const CHART_COLORS = [
-  'hsl(24, 95%, 53%)', 'hsl(142, 71%, 45%)', 'hsl(200, 60%, 50%)',
+  'hsl(160, 84%, 39%)', 'hsl(142, 71%, 45%)', 'hsl(200, 60%, 50%)',
   'hsl(280, 60%, 50%)', 'hsl(340, 60%, 50%)', 'hsl(38, 92%, 50%)',
 ];
 
@@ -80,7 +80,7 @@ export default function DashboardPage() {
     return data;
   }, [spending, savings, investments, inHand]);
 
-  const donutColors = ['hsl(0, 72%, 51%)', 'hsl(24, 95%, 53%)', 'hsl(38, 92%, 50%)', 'hsl(142, 71%, 45%)'];
+  const donutColors = ['hsl(0, 72%, 51%)', 'hsl(160, 84%, 39%)', 'hsl(38, 92%, 50%)', 'hsl(142, 71%, 45%)'];
 
   const displayName = profile.username || 'Bro';
 
@@ -263,7 +263,7 @@ export default function DashboardPage() {
                     <YAxis tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                     <Tooltip formatter={(v: number) => formatCurrency(v)} />
                     <Bar dataKey="income" fill="hsl(142, 71%, 45%)" radius={[6, 6, 0, 0]} name="Income" />
-                    <Bar dataKey="spending" fill="hsl(24, 95%, 53%)" radius={[6, 6, 0, 0]} name="Spending" />
+                    <Bar dataKey="spending" fill="hsl(160, 84%, 39%)" radius={[6, 6, 0, 0]} name="Spending" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
