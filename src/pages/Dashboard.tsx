@@ -262,8 +262,8 @@ export default function DashboardPage() {
                     <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                     <YAxis tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                     <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                    <Bar dataKey="income" fill="hsl(142, 71%, 45%)" radius={[6, 6, 0, 0]} name="Income" />
-                    <Bar dataKey="spending" fill="hsl(160, 84%, 39%)" radius={[6, 6, 0, 0]} name="Spending" />
+                    <Bar dataKey="income" fill="hsl(160, 84%, 39%)" radius={[6, 6, 0, 0]} name="Income" />
+                    <Bar dataKey="spending" fill="hsl(0, 72%, 58%)" radius={[6, 6, 0, 0]} name="Spending" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
