@@ -238,7 +238,7 @@ export default function AnalyticsPage() {
                   <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
                   <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
                   <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                  <Line type="monotone" dataKey="surplus" stroke="hsl(24, 95%, 53%)" strokeWidth={2} dot={{ r: 4 }} name="Net Surplus" />
+                  <Line type="monotone" dataKey="surplus" stroke="hsl(160, 84%, 39%)" strokeWidth={2} dot={{ r: 4 }} name="Net Surplus" />
                 </LineChart>
               </ResponsiveContainer>
             </div>

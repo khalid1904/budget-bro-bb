@@ -22,7 +22,7 @@ const CATEGORY_MAP: Record<string, CategoryIconConfig> = {
   'Rent':            { icon: Home,          bg: 'hsl(220, 60%, 55%)', fg: '#fff' },
   'Bills':           { icon: Zap,           bg: 'hsl(340, 65%, 50%)', fg: '#fff' },
   'Groceries':       { icon: ShoppingCart,  bg: 'hsl(142, 71%, 45%)', fg: '#fff' },
-  'Savings':         { icon: PiggyBank,     bg: 'hsl(24, 95%, 53%)',  fg: '#fff' },
+  'Savings':         { icon: PiggyBank,     bg: 'hsl(38, 92%, 50%)',  fg: '#fff' },
   'Transport':       { icon: Car,           bg: 'hsl(200, 60%, 50%)', fg: '#fff' },
   'Entertainment':   { icon: Film,          bg: 'hsl(280, 60%, 50%)', fg: '#fff' },
   'Healthcare':      { icon: HeartPulse,    bg: 'hsl(0, 72%, 51%)',   fg: '#fff' },
