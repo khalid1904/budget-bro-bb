@@ -80,7 +80,7 @@ export default function DashboardPage() {
     return data;
   }, [spending, savings, investments, inHand]);
 
-  const donutColors = ['hsl(0, 72%, 51%)', 'hsl(24, 95%, 53%)', 'hsl(38, 92%, 50%)', 'hsl(142, 71%, 45%)'];
+  const donutColors = ['hsl(0, 72%, 51%)', 'hsl(160, 84%, 39%)', 'hsl(38, 92%, 50%)', 'hsl(142, 71%, 45%)'];
 
   const displayName = profile.username || 'Bro';
 
