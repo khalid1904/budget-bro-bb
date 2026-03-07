@@ -99,12 +99,12 @@
 
     --sidebar-background: 220 22% 6%;
     --sidebar-foreground: 30 10% 85%;
-    --sidebar-primary: 24 90% 55%;
+    --sidebar-primary: 160 70% 45%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 18% 12%;
-    --sidebar-accent-foreground: 24 40% 80%;
+    --sidebar-accent-foreground: 160 40% 80%;
     --sidebar-border: 220 15% 15%;
-    --sidebar-ring: 24 90% 55%;
+    --sidebar-ring: 160 70% 45%;
     --sidebar-muted: 220 10% 40%;
 
     --gradient-hero: linear-gradient(135deg, hsl(24, 80%, 40%) 0%, hsl(16, 70%, 35%) 50%, hsl(340, 50%, 35%) 100%);
