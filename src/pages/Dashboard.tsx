@@ -11,7 +11,7 @@ import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 
 const CHART_COLORS = [
-  'hsl(24, 95%, 53%)', 'hsl(142, 71%, 45%)', 'hsl(200, 60%, 50%)',
+  'hsl(160, 84%, 39%)', 'hsl(142, 71%, 45%)', 'hsl(200, 60%, 50%)',
   'hsl(280, 60%, 50%)', 'hsl(340, 60%, 50%)', 'hsl(38, 92%, 50%)',
 ];
 
