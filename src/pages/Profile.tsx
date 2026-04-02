@@ -24,7 +24,7 @@ export default function ProfilePage() {
   const [changingPassword, setChangingPassword] = useState(false);
 
   const handleSaveProfile = async () => {
-    await updateProfile({ username: username.trim(), email: email.trim(), bio: bio.trim(), avatar: selectedAvatar });
+    await updateProfile({ username: username.trim(), email: email.trim(), bio: bio.trim() });
     toast({ title: 'Profile updated!' });
   };
 
