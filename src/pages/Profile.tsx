@@ -17,6 +17,7 @@ export default function ProfilePage() {
   const [email, setEmail] = useState(profile.email);
   const [bio, setBio] = useState(profile.bio);
   const [selectedAvatar, setSelectedAvatar] = useState(profile.avatar);
+  const [savingAvatar, setSavingAvatar] = useState(false);
   const [currency, setCurrency] = useState(settings.default_currency);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
