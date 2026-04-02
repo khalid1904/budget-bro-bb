@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, BarChart3, Shield, Smartphone, Zap, Target, Download } from 'lucide-react';
+import { ArrowRight, BarChart3, Shield, Smartphone, Zap, Target, Download, Check, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const features = [
@@ -131,6 +131,95 @@ export default function LandingPage() {
                 <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
               </motion.div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section className="py-20">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="text-center mb-14"
+          >
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-4">
+              Simple, transparent pricing
+            </h2>
+            <p className="text-muted-foreground text-lg max-w-xl mx-auto">
+              Start free and upgrade when you're ready to unlock the full power of Budget Bro.
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+            {/* Free Tier */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="bg-card rounded-2xl p-8 shadow-card border border-border"
+            >
+              <h3 className="font-display font-bold text-xl text-foreground mb-1">Free</h3>
+              <p className="text-muted-foreground text-sm mb-6">Everything you need to get started</p>
+              <div className="text-4xl font-display font-bold text-foreground mb-8">
+                $0<span className="text-base font-normal text-muted-foreground">/forever</span>
+              </div>
+              <ul className="space-y-3 mb-8">
+                {['Dashboard Overview', 'Budget Management', 'Profile & Settings'].map(f => (
+                  <li key={f} className="flex items-center gap-2 text-sm text-foreground">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    {f}
+                  </li>
+                ))}
+                {['Yearly Insights', 'Recurring Transactions', 'Savings Goals', 'Advanced Analytics'].map(f => (
+                  <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground/50">
+                    <X className="w-4 h-4 shrink-0" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Button variant="outline" size="lg" className="w-full" asChild>
+                <Link to="/register">Start Free</Link>
+              </Button>
+            </motion.div>
+
+            {/* Pro Tier */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="bg-card rounded-2xl p-8 shadow-elevated border-2 border-primary relative"
+            >
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-full">
+                POPULAR
+              </div>
+              <h3 className="font-display font-bold text-xl text-foreground mb-1">Pro</h3>
+              <p className="text-muted-foreground text-sm mb-6">Full access to all features</p>
+              <div className="text-4xl font-display font-bold text-foreground mb-8">
+                Pro<span className="text-base font-normal text-muted-foreground"> · Contact us</span>
+              </div>
+              <ul className="space-y-3 mb-8">
+                {[
+                  'Dashboard Overview',
+                  'Budget Management',
+                  'Profile & Settings',
+                  'Yearly Insights',
+                  'Recurring Transactions',
+                  'Savings Goals',
+                  'Advanced Analytics',
+                ].map(f => (
+                  <li key={f} className="flex items-center gap-2 text-sm text-foreground">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Button size="lg" className="w-full" asChild>
+                <Link to="/register">Get Started <ArrowRight className="ml-2 w-4 h-4" /></Link>
+              </Button>
+            </motion.div>
           </div>
         </div>
       </section>

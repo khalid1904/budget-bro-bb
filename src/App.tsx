@@ -32,6 +32,12 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return user ? <Navigate to="/dashboard" replace /> : <>{children}</>;
 }
 
+function TierRoute({ children }: { children: React.ReactNode }) {
+  const { profile } = useBudget();
+  if (profile.tier !== 'pro') return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -45,11 +51,11 @@ const App = () => (
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
             <Route element={<ProtectedRoute><RecurringProvider><AppLayout /></RecurringProvider></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/yearly" element={<YearlyInsights />} />
+              <Route path="/yearly" element={<TierRoute><YearlyInsights /></TierRoute>} />
               <Route path="/budget" element={<Budget />} />
-              <Route path="/recurring" element={<Recurring />} />
-              <Route path="/savings-goals" element={<SavingsGoals />} />
-              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/recurring" element={<TierRoute><Recurring /></TierRoute>} />
+              <Route path="/savings-goals" element={<TierRoute><SavingsGoals /></TierRoute>} />
+              <Route path="/analytics" element={<TierRoute><Analytics /></TierRoute>} />
               <Route path="/profile" element={<Profile />} />
             </Route>
             <Route path="*" element={<NotFound />} />

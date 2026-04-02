@@ -7,6 +7,7 @@ interface Profile {
   email: string;
   bio: string;
   avatar: string;
+  tier: string;
 }
 
 interface Settings {
@@ -90,7 +91,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<Profile>({ username: '', email: '', bio: '', avatar: '🦸' });
+  const [profile, setProfile] = useState<Profile>({ username: '', email: '', bio: '', avatar: '🦸', tier: 'free' });
   const [settings, setSettings] = useState<Settings>({ default_currency: 'INR', dark_mode: false });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [customCategories, setCustomCategories] = useState<{ incoming: string[]; outgoing: string[] }>({ incoming: [], outgoing: [] });
@@ -128,7 +129,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const refreshProfile = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
-    if (data) setProfile({ username: data.username, email: data.email, bio: data.bio, avatar: data.avatar });
+    if (data) setProfile({ username: data.username, email: data.email, bio: data.bio, avatar: data.avatar, tier: (data as any).tier || 'free' });
   }, [user]);
 
   const [initialSettingsLoaded, setInitialSettingsLoaded] = useState(false);
