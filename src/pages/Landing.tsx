@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, BarChart3, Shield, Smartphone, Zap, HandMetal, Download } from 'lucide-react';
+import { ArrowRight, BarChart3, Shield, Smartphone, Zap, Target, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const features = [
@@ -8,7 +8,7 @@ const features = [
   { icon: Shield, title: 'Secure & Private', desc: 'Your financial data stays yours. Encrypted and protected.' },
   { icon: Smartphone, title: 'Works Everywhere', desc: 'Installable PWA — use it on desktop, tablet, or mobile.' },
   { icon: Zap, title: 'Lightning Fast', desc: 'Add entries in seconds. No bloat, no friction.' },
-  { icon: HandMetal, title: 'Budget Goals', desc: 'Set savings targets and track your progress month by month.' },
+  { icon: Target, title: 'Budget Goals', desc: 'Set savings targets and track your progress month by month.' },
   { icon: Download, title: 'Excel Export', desc: 'Download your monthly data as a spreadsheet anytime.' },
 ];
 
@@ -19,9 +19,7 @@ export default function LandingPage() {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="container mx-auto flex items-center justify-between h-16 px-4">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-hero-gradient flex items-center justify-center">
-              <HandMetal className="w-5 h-5 text-primary-foreground" />
-            </div>
+            <img src="/icon-192.png" alt="Budget Bro" className="w-8 h-8 rounded-lg" />
             <span className="font-display font-bold text-lg text-foreground">Budget Bro</span>
           </Link>
           <div className="flex items-center gap-3">
