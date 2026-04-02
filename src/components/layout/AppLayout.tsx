@@ -92,9 +92,7 @@ export default function AppLayout() {
               <Menu className="w-6 h-6" />
             </button>
             <div className="flex items-center gap-2 ml-3">
-              <div className="w-7 h-7 rounded-lg bg-hero-gradient flex items-center justify-center">
-                <HandMetal className="w-4 h-4 text-primary-foreground" />
-              </div>
+              <img src="/icon-192.png" alt="Budget Bro" className="w-7 h-7 rounded-lg" />
               <span className="font-display font-bold text-foreground">Budget Bro</span>
             </div>
           </div>
