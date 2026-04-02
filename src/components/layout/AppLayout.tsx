@@ -1,6 +1,6 @@
 import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, HandMetal, Menu, X, Moon, Sun, Repeat, Trophy, Target } from 'lucide-react';
+import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, Menu, X, Moon, Sun, Repeat, Trophy, Target } from 'lucide-react';
 import { useBudget } from '@/lib/budget-context';
 import { cn } from '@/lib/utils';
 
