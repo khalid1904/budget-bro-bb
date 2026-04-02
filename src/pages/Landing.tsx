@@ -8,7 +8,7 @@ const features = [
   { icon: Shield, title: 'Secure & Private', desc: 'Your financial data stays yours. Encrypted and protected.' },
   { icon: Smartphone, title: 'Works Everywhere', desc: 'Installable PWA — use it on desktop, tablet, or mobile.' },
   { icon: Zap, title: 'Lightning Fast', desc: 'Add entries in seconds. No bloat, no friction.' },
-  { icon: HandMetal, title: 'Budget Goals', desc: 'Set savings targets and track your progress month by month.' },
+  { icon: Target, title: 'Budget Goals', desc: 'Set savings targets and track your progress month by month.' },
   { icon: Download, title: 'Excel Export', desc: 'Download your monthly data as a spreadsheet anytime.' },
 ];
 
