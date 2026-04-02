@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, BarChart3, Shield, Smartphone, Zap, HandMetal, Download } from 'lucide-react';
+import { ArrowRight, BarChart3, Shield, Smartphone, Zap, Target, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const features = [
