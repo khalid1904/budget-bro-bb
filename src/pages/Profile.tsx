@@ -17,13 +17,14 @@ export default function ProfilePage() {
   const [email, setEmail] = useState(profile.email);
   const [bio, setBio] = useState(profile.bio);
   const [selectedAvatar, setSelectedAvatar] = useState(profile.avatar);
+  const [savingAvatar, setSavingAvatar] = useState(false);
   const [currency, setCurrency] = useState(settings.default_currency);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
 
   const handleSaveProfile = async () => {
-    await updateProfile({ username: username.trim(), email: email.trim(), bio: bio.trim(), avatar: selectedAvatar });
+    await updateProfile({ username: username.trim(), email: email.trim(), bio: bio.trim() });
     toast({ title: 'Profile updated!' });
   };
 
@@ -61,7 +62,14 @@ export default function ProfilePage() {
         <CardContent>
           <div className="flex flex-wrap gap-3">
             {AVATAR_PRESETS.map(a => (
-              <button key={a} onClick={() => setSelectedAvatar(a)}
+              <button key={a} onClick={async () => {
+                setSelectedAvatar(a);
+                setSavingAvatar(true);
+                await updateProfile({ avatar: a });
+                setSavingAvatar(false);
+                toast({ title: `Avatar updated to ${a}` });
+              }}
+                disabled={savingAvatar}
                 className={`w-14 h-14 rounded-xl text-2xl flex items-center justify-center transition-all ${selectedAvatar === a ? 'bg-primary/10 ring-2 ring-primary scale-110' : 'bg-muted hover:bg-muted/80'}`}
               >{a}</button>
             ))}
