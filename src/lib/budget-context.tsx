@@ -129,7 +129,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const refreshProfile = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
-    if (data) setProfile({ username: data.username, email: data.email, bio: data.bio, avatar: data.avatar });
+    if (data) setProfile({ username: data.username, email: data.email, bio: data.bio, avatar: data.avatar, tier: (data as any).tier || 'free' });
   }, [user]);
 
   const [initialSettingsLoaded, setInitialSettingsLoaded] = useState(false);
