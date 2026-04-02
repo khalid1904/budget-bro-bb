@@ -7,6 +7,7 @@ interface Profile {
   email: string;
   bio: string;
   avatar: string;
+  tier: string;
 }
 
 interface Settings {
