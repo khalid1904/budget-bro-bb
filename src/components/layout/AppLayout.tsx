@@ -37,7 +37,7 @@ export default function AppLayout() {
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex items-center gap-2.5 p-5">
-          <img src="/icon-192.png" alt="Budget Bro" className="w-9 h-9 rounded-xl shadow-sm" />
+          <img src="/brand-hero.jpg" alt="Budget Bro" className="w-9 h-9 rounded-xl shadow-sm" />
           <span className="font-display font-bold text-lg text-sidebar-foreground">Budget Bro</span>
           <button className="ml-auto lg:hidden text-sidebar-muted hover:text-sidebar-foreground" onClick={() => setSidebarOpen(false)}>
             <X className="w-5 h-5" />
@@ -114,7 +114,7 @@ export default function AppLayout() {
               <Menu className="w-6 h-6" />
             </button>
             <div className="flex items-center gap-2 ml-3">
-              <img src="/icon-192.png" alt="Budget Bro" className="w-7 h-7 rounded-lg" />
+              <img src="/brand-hero.jpg" alt="Budget Bro" className="w-7 h-7 rounded-lg" />
               <span className="font-display font-bold text-foreground">Budget Bro</span>
             </div>
           </div>
