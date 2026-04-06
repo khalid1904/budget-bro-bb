@@ -9,7 +9,7 @@
     --font-display: 'Space Grotesk', sans-serif;
     --font-body: 'DM Sans', sans-serif;
 
-    --background: 30 25% 97%;
+    --background: 160 20% 97%;
     --foreground: 220 25% 10%;
 
     --card: 0 0% 100%;
@@ -21,8 +21,8 @@
     --primary: 160 84% 39%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 160 30% 95%;
-    --secondary-foreground: 160 60% 30%;
+    --secondary: 160 25% 94%;
+    --secondary-foreground: 160 60% 25%;
 
     --muted: 220 14% 96%;
     --muted-foreground: 220 10% 46%;
