@@ -72,9 +72,9 @@ export default function LandingPage() {
             <div className="bg-card rounded-2xl shadow-elevated border border-border p-6 md:p-8">
               <div className="grid grid-cols-3 gap-4 mb-6">
                 {[
-                  { label: 'Income', value: '$8,450', color: 'text-success' },
-                  { label: 'Expenses', value: '$5,230', color: 'text-destructive' },
-                  { label: 'In Hand', value: '$3,220', color: 'text-primary' },
+                  { label: 'Income', value: '₹8,450', color: 'text-success' },
+                  { label: 'Expenses', value: '₹5,230', color: 'text-destructive' },
+                  { label: 'In Hand', value: '₹3,220', color: 'text-primary' },
                 ].map((item) => (
                   <div key={item.label} className="bg-muted rounded-xl p-4 text-center">
                     <p className="text-sm text-muted-foreground mb-1">{item.label}</p>
@@ -162,7 +162,7 @@ export default function LandingPage() {
               <h3 className="font-display font-bold text-xl text-foreground mb-1">Free</h3>
               <p className="text-muted-foreground text-sm mb-6">Everything you need to get started</p>
               <div className="text-4xl font-display font-bold text-foreground mb-8">
-                $0<span className="text-base font-normal text-muted-foreground">/forever</span>
+                ₹0<span className="text-base font-normal text-muted-foreground">/forever</span>
               </div>
               <ul className="space-y-3 mb-8">
                 {['Dashboard Overview', 'Budget Management', 'Profile & Settings'].map(f => (
