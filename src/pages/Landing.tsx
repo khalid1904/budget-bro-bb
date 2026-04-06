@@ -19,8 +19,7 @@ export default function LandingPage() {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="container mx-auto flex items-center justify-between h-16 px-4">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/icon-192.png" alt="Budget Bro" className="w-8 h-8 rounded-lg" />
-            <span className="font-display font-bold text-lg text-foreground">Budget Bro</span>
+            <img src="/brand-hero.jpg" alt="Budget Bro" className="h-10" />
           </Link>
           <div className="flex items-center gap-3">
             <Button variant="ghost" asChild><Link to="/login">Login</Link></Button>
