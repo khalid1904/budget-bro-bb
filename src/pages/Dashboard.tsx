@@ -209,7 +209,7 @@ export default function DashboardPage() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <Card className="shadow-card h-full">
             <CardHeader>
-              <CardTitle className="font-display text-lg">Spending by Category</CardTitle>
+              <CardTitle className="font-display text-lg"><CardTitle className="font-display text-lg">Budget by Category</CardTitle></CardTitle>
             </CardHeader>
             <CardContent>
               {categoryData.outgoing.length > 0 ? (

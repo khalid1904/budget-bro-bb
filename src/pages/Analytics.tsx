@@ -183,7 +183,7 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {(['incoming', 'outgoing'] as const).map(type => (
           <Card key={type} className="shadow-card">
-            <CardHeader><CardTitle className="font-display capitalize">{type} Breakdown</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="font-display">{type === 'incoming' ? 'Income' : 'Budget'} Breakdown</CardTitle></CardHeader>
             <CardContent>
               {categoryBreakdown[type].length > 0 ? (
                 <div className="flex flex-col items-center gap-4">
