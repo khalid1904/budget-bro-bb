@@ -38,7 +38,7 @@ export default function LandingPage() {
             transition={{ duration: 0.7 }}
             className="max-w-3xl mx-auto text-center"
           >
-            <img src="/brand-hero.jpg" alt="Budget Bro" className="w-24 h-24 rounded-2xl shadow-elevated mb-6" />
+            <img src="/brand-hero.jpg" alt="Budget Bro" className="w-32 h-32 rounded-2xl shadow-elevated mb-6 mx-auto" />
             <div className="inline-flex items-center gap-2 bg-secondary rounded-full px-4 py-1.5 mb-6">
               <Zap className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium text-secondary-foreground">Your bro for budgeting 🤙</span>
