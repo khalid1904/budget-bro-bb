@@ -1,6 +1,6 @@
 import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, Menu, X, Moon, Sun, Repeat, Trophy, Target, Lock } from 'lucide-react';
+import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, Menu, X, Moon, Sun, Repeat, Trophy, Target, Lock, Receipt } from 'lucide-react';
 import { useBudget } from '@/lib/budget-context';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -16,10 +16,17 @@ const allNavItems = [
 ];
 
 export default function AppLayout() {
-  const { signOut, profile, isDark, toggleDark } = useBudget();
+  const { signOut, profile, isDark, toggleDark, settings } = useBudget();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isPro = profile.tier === 'pro';
+
+  const navItems = [
+    ...allNavItems,
+    ...(isPro && settings.expense_tracking_enabled
+      ? [{ to: '/expenses', label: 'Expenses', icon: Receipt, free: false }]
+      : []),
+  ];
 
   const handleLogout = async () => {
     await signOut();
@@ -45,7 +52,7 @@ export default function AppLayout() {
         </div>
 
         <nav className="flex-1 p-3 space-y-0.5">
-          {allNavItems.map(item => {
+          {navItems.map(item => {
             const locked = !item.free && !isPro;
             if (locked) {
               return (
