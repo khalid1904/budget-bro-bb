@@ -13,6 +13,7 @@ interface Profile {
 interface Settings {
   default_currency: string;
   dark_mode: boolean;
+  expense_tracking_enabled: boolean;
 }
 
 interface Transaction {
@@ -34,6 +35,17 @@ interface SavingsGoal {
   target_date: string | null;
   description: string;
   status: string;
+}
+
+interface Expense {
+  id: string;
+  title: string;
+  amount: number;
+  category: string;
+  date: string;
+  month: string;
+  budget_transaction_id?: string | null;
+  notes?: string;
 }
 
 interface BudgetContextType {
@@ -65,6 +77,11 @@ interface BudgetContextType {
   addGoal: (g: { goal_name: string; target_amount: number; target_date: string | null; description: string }) => Promise<void>;
   editGoal: (id: string, g: Partial<SavingsGoal>) => Promise<void>;
   deleteGoal: (id: string) => Promise<void>;
+  expenses: Expense[];
+  refreshExpenses: () => Promise<void>;
+  addExpense: (e: Omit<Expense, 'id'>) => Promise<void>;
+  editExpense: (id: string, e: Partial<Expense>) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
 }
 
 const BudgetContext = createContext<BudgetContextType | null>(null);
@@ -92,7 +109,8 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile>({ username: '', email: '', bio: '', avatar: '🦸', tier: 'free' });
-  const [settings, setSettings] = useState<Settings>({ default_currency: 'INR', dark_mode: false });
+  const [settings, setSettings] = useState<Settings>({ default_currency: 'INR', dark_mode: false, expense_tracking_enabled: false });
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [customCategories, setCustomCategories] = useState<{ incoming: string[]; outgoing: string[] }>({ incoming: [], outgoing: [] });
   const [currentMonth, setCurrentMonth] = useState(defaultMonth);
@@ -138,7 +156,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const { data } = await supabase.from('user_settings').select('*').eq('user_id', user.id).single();
     if (data) {
-      setSettings({ default_currency: data.default_currency, dark_mode: data.dark_mode });
+      setSettings({ default_currency: data.default_currency, dark_mode: data.dark_mode, expense_tracking_enabled: (data as any).expense_tracking_enabled ?? false });
       if (!initialSettingsLoaded) {
         const stored = localStorage.getItem('darkMode');
         if (stored === null) {
@@ -179,6 +197,12 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     })));
   }, [user]);
 
+  const refreshExpenses = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from('expenses' as any).select('*').eq('user_id', user.id).order('date', { ascending: false });
+    if (data) setExpenses((data as any[]).map(e => ({ id: e.id, title: e.title, amount: Number(e.amount), category: e.category, date: e.date, month: e.month, budget_transaction_id: e.budget_transaction_id, notes: e.notes || '' })));
+  }, [user]);
+
   // Load data when user changes
   useEffect(() => {
     if (user) {
@@ -187,8 +211,9 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       refreshTransactions();
       refreshCategories();
       refreshGoals();
+      refreshExpenses();
     }
-  }, [user, refreshProfile, refreshSettings, refreshTransactions, refreshCategories, refreshGoals]);
+  }, [user, refreshProfile, refreshSettings, refreshTransactions, refreshCategories, refreshGoals, refreshExpenses]);
 
   const updateProfile = useCallback(async (p: Partial<Profile>) => {
     if (!user) return;
@@ -267,6 +292,27 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     setSavingsGoals(prev => prev.filter(g => g.id !== id));
   }, [user]);
 
+  const addExpense = useCallback(async (e: Omit<Expense, 'id'>) => {
+    if (!user) return;
+    const { data } = await supabase.from('expenses' as any).insert({ ...e, user_id: user.id } as any).select().single();
+    if (data) {
+      const d = data as any;
+      setExpenses(prev => [{ id: d.id, title: d.title, amount: Number(d.amount), category: d.category, date: d.date, month: d.month, budget_transaction_id: d.budget_transaction_id, notes: d.notes || '' }, ...prev]);
+    }
+  }, [user]);
+
+  const editExpense = useCallback(async (id: string, updates: Partial<Expense>) => {
+    if (!user) return;
+    await supabase.from('expenses' as any).update(updates as any).eq('id', id).eq('user_id', user.id);
+    setExpenses(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
+  }, [user]);
+
+  const deleteExpense = useCallback(async (id: string) => {
+    if (!user) return;
+    await supabase.from('expenses' as any).delete().eq('id', id).eq('user_id', user.id);
+    setExpenses(prev => prev.filter(e => e.id !== id));
+  }, [user]);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
   }, []);
@@ -291,6 +337,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       updateProfile, updateSettings, addTransaction, editTransaction, deleteTransaction,
       addCategory, signOut, isDark, toggleDark, formatCurrency,
       savingsGoals, refreshGoals, addGoal, editGoal, deleteGoal,
+      expenses, refreshExpenses, addExpense, editExpense, deleteExpense,
     }}>
       {children}
     </BudgetContext.Provider>
