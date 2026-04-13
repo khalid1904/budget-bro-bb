@@ -38,6 +38,56 @@ export type Database = {
         }
         Relationships: []
       }
+      expenses: {
+        Row: {
+          amount: number
+          budget_transaction_id: string | null
+          category: string
+          created_at: string
+          date: string
+          id: string
+          month: string
+          notes: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          budget_transaction_id?: string | null
+          category: string
+          created_at?: string
+          date?: string
+          id?: string
+          month: string
+          notes?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          budget_transaction_id?: string | null
+          category?: string
+          created_at?: string
+          date?: string
+          id?: string
+          month?: string
+          notes?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_budget_transaction_id_fkey"
+            columns: ["budget_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar: string
@@ -229,6 +279,7 @@ export type Database = {
           created_at: string
           dark_mode: boolean
           default_currency: string
+          expense_tracking_enabled: boolean
           id: string
           updated_at: string
           user_id: string
@@ -237,6 +288,7 @@ export type Database = {
           created_at?: string
           dark_mode?: boolean
           default_currency?: string
+          expense_tracking_enabled?: boolean
           id?: string
           updated_at?: string
           user_id: string
@@ -245,6 +297,7 @@ export type Database = {
           created_at?: string
           dark_mode?: boolean
           default_currency?: string
+          expense_tracking_enabled?: boolean
           id?: string
           updated_at?: string
           user_id?: string

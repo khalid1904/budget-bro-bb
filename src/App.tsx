@@ -13,6 +13,7 @@ import Budget from "./pages/Budget";
 import Analytics from "./pages/Analytics";
 import Recurring from "./pages/Recurring";
 import Profile from "./pages/Profile";
+import Expenses from "./pages/Expenses";
 import YearlyInsights from "./pages/YearlyInsights";
 import SavingsGoals from "./pages/SavingsGoals";
 import AppLayout from "./components/layout/AppLayout";
@@ -56,6 +57,7 @@ const App = () => (
               <Route path="/recurring" element={<TierRoute><Recurring /></TierRoute>} />
               <Route path="/savings-goals" element={<TierRoute><SavingsGoals /></TierRoute>} />
               <Route path="/analytics" element={<TierRoute><Analytics /></TierRoute>} />
+              <Route path="/expenses" element={<TierRoute><Expenses /></TierRoute>} />
               <Route path="/profile" element={<Profile />} />
             </Route>
             <Route path="*" element={<NotFound />} />

@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit2, Tag, TrendingUp, TrendingDown, Repeat, Target } from 'lucide-react';
+import { Plus, Trash2, Edit2, Tag, TrendingUp, TrendingDown, Repeat, Target, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -29,7 +29,7 @@ function formatMonth(m: string) {
 }
 
 export default function BudgetPage() {
-  const { currentMonth, setCurrentMonth, transactions, addTransaction, deleteTransaction, editTransaction, customCategories, addCategory, formatCurrency, savingsGoals } = useBudget();
+  const { currentMonth, setCurrentMonth, transactions, addTransaction, deleteTransaction, editTransaction, customCategories, addCategory, formatCurrency, savingsGoals, settings, addExpense, expenses } = useBudget();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -108,6 +108,21 @@ export default function BudgetPage() {
   const getGoalName = (gId: string | null | undefined) => {
     if (!gId) return null;
     return savingsGoals.find(g => g.id === gId)?.goal_name || null;
+  };
+
+  const isAlreadySpent = (txId: string) => expenses.some(e => e.budget_transaction_id === txId);
+
+  const handleMarkAsSpent = async (tx: { id: string; title: string; amount: number; category: string; date: string; month: string }) => {
+    await addExpense({
+      title: tx.title,
+      amount: tx.amount,
+      category: tx.category,
+      date: tx.date,
+      month: tx.month,
+      budget_transaction_id: tx.id,
+      notes: '',
+    });
+    toast({ title: 'Recorded as expense' });
   };
 
   return (
@@ -221,6 +236,14 @@ export default function BudgetPage() {
                           </div>
                           <span className={`font-display font-semibold whitespace-nowrap ${activeTab === 'incoming' ? 'text-success' : 'text-destructive'}`}>{formatCurrency(tx.amount)}</span>
                           <div className="flex items-center gap-1">
+                            {activeTab === 'outgoing' && settings.expense_tracking_enabled && !isAlreadySpent(tx.id) && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-success" title="Mark as Spent" onClick={() => handleMarkAsSpent(tx)}>
+                                <CheckCircle className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {activeTab === 'outgoing' && settings.expense_tracking_enabled && isAlreadySpent(tx.id) && (
+                              <span className="text-xs text-success px-1.5">✓ Spent</span>
+                            )}
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(tx.id)}><Edit2 className="w-4 h-4" /></Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={async () => { await deleteTransaction(tx.id); toast({ title: 'Entry deleted' }); }}><Trash2 className="w-4 h-4" /></Button>
                           </div>

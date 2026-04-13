@@ -6,12 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function ProfilePage() {
   const { profile, updateProfile, settings, updateSettings } = useBudget();
+  const isPro = profile.tier === 'pro';
   const { toast } = useToast();
   const [username, setUsername] = useState(profile.username);
   const [email, setEmail] = useState(profile.email);
@@ -115,6 +117,27 @@ export default function ProfilePage() {
           </Button>
         </CardContent>
       </Card>
+
+      {isPro && (
+        <Card className="shadow-card">
+          <CardHeader><CardTitle className="font-display">Expense Tracking</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Enable Expense Tracking</Label>
+                <p className="text-sm text-muted-foreground mt-0.5">Record actual spending and compare with your budget allocations</p>
+              </div>
+              <Switch
+                checked={settings.expense_tracking_enabled}
+                onCheckedChange={async (checked) => {
+                  await updateSettings({ expense_tracking_enabled: checked });
+                  toast({ title: checked ? 'Expense tracking enabled' : 'Expense tracking disabled' });
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
