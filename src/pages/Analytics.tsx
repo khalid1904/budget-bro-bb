@@ -26,7 +26,7 @@ function formatRatio(value: number, totalIncome: number): string {
 }
 
 export default function AnalyticsPage() {
-  const { transactions, currentMonth, setCurrentMonth, formatCurrency } = useBudget();
+  const { transactions, currentMonth, setCurrentMonth, formatCurrency, expenses, settings } = useBudget();
 
   const monthOptions = useMemo(() => {
     const now = new Date();
