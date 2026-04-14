@@ -52,21 +52,7 @@ export default function AppLayout() {
         </div>
 
         <nav className="flex-1 p-3 space-y-0.5">
-          {navItems.map(item => {
-            const locked = !item.free && !isPro;
-            if (locked) {
-              return (
-                <div
-                  key={item.to}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-sidebar-muted/50 cursor-not-allowed select-none"
-                >
-                  <item.icon className="w-5 h-5" />
-                  <span className="flex-1">{item.label}</span>
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-semibold">PRO</Badge>
-                </div>
-              );
-            }
-            return (
+          {navItems.map(item => (
               <NavLink
                 key={item.to}
                 to={item.to}
