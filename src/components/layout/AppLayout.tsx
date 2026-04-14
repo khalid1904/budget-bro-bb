@@ -22,12 +22,11 @@ export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isPro = profile.tier === 'pro';
 
-  const navItems = [
-    ...allNavItems,
-    ...(isPro && settings.expense_tracking_enabled
-      ? [{ to: '/expenses', label: 'Expenses', icon: Receipt, free: false }]
-      : []),
-  ];
+  const navItems = allNavItems.filter(item => {
+    if (!item.free && !isPro) return false;
+    if (item.to === '/expenses' && !settings.expense_tracking_enabled) return false;
+    return true;
+  });
 
   const handleLogout = async () => {
     await signOut();
