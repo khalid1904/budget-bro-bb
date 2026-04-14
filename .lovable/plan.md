@@ -1,21 +1,27 @@
 
 
-## Plan: Reorder Nav Items and Hide Pro-Only Items for Free Users
+## Plan: Add Expense-Based Reports to Analytics
 
-### Changes
+When expense tracking is enabled and expenses exist for the selected month, add three new report sections to the Analytics page.
 
-**`src/components/layout/AppLayout.tsx`**
+### Changes — `src/pages/Analytics.tsx` only
 
-1. Reorder `allNavItems` to match the requested order and include Expenses in the static list:
-   - Dashboard, Budget, Expenses, Recurring, Savings Goals, Analytics, Yearly Insights, Profile
+**1. Pull expense data and settings from context**
+- Destructure `expenses`, `settings` from `useBudget()`
+- Compute `expenseEnabled = settings.expense_tracking_enabled`
+- Filter `monthExpenses` for `currentMonth`
 
-2. Change the `navItems` filtering logic: instead of showing Pro items as greyed-out/locked for free users, **filter them out entirely**. Only Pro users see Pro-only items. Expenses additionally requires `expense_tracking_enabled`.
+**2. New computed data (all gated on `expenseEnabled && monthExpenses.length > 0`)**
 
-3. Remove the locked/greyed-out rendering block (the `if (locked)` branch that shows the PRO badge on disabled items).
+- **Expense by Category pie chart** — group expenses by category, same donut style as existing breakdowns
+- **Budget vs Actual bar chart** — for each outgoing category, show budgeted amount (from transactions) vs actual spent (from expenses) side by side
+- **Expense Trend line chart** — across last 12 months, plot total expenses per month (similar to existing savings trend)
+- **Summary card row** — Total Expenses, Budget Utilization % (total expenses / total allocations × 100), Over-budget categories count
 
-### Summary of code changes
+**3. Render conditionally**
+- After the existing charts, add a section header "Expense Reports" with these new cards
+- Only rendered when expense tracking is enabled AND there are expenses recorded
+- Uses same card styling, color palette, and chart components as existing sections
 
-- Reorder and merge `allNavItems` to the new order (Expenses included statically with `free: false`)
-- Replace `navItems` computation: filter out `!item.free` items when `!isPro`, and additionally filter out Expenses when `!settings.expense_tracking_enabled`
-- Remove the `locked` check and its disabled-looking render branch from the nav loop
+### No database or routing changes needed — this is purely a UI addition to the existing Analytics page.
 
