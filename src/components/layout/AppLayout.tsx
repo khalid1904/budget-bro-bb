@@ -1,17 +1,18 @@
 import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, Menu, X, Moon, Sun, Repeat, Trophy, Target, Lock, Receipt } from 'lucide-react';
+import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, Menu, X, Moon, Sun, Repeat, Trophy, Target, Receipt } from 'lucide-react';
 import { useBudget } from '@/lib/budget-context';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
 const allNavItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, free: true },
-  { to: '/yearly', label: 'Yearly Insights', icon: Trophy, free: false },
   { to: '/budget', label: 'Budget', icon: ArrowUpDown, free: true },
+  { to: '/expenses', label: 'Expenses', icon: Receipt, free: false },
   { to: '/recurring', label: 'Recurring', icon: Repeat, free: false },
   { to: '/savings-goals', label: 'Savings Goals', icon: Target, free: false },
   { to: '/analytics', label: 'Analytics', icon: BarChart3, free: false },
+  { to: '/yearly', label: 'Yearly Insights', icon: Trophy, free: false },
   { to: '/profile', label: 'Profile', icon: User, free: true },
 ];
 
