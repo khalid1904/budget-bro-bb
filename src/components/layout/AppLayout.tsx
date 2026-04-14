@@ -1,17 +1,18 @@
 import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, Menu, X, Moon, Sun, Repeat, Trophy, Target, Lock, Receipt } from 'lucide-react';
+import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, Menu, X, Moon, Sun, Repeat, Trophy, Target, Receipt } from 'lucide-react';
 import { useBudget } from '@/lib/budget-context';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
 const allNavItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, free: true },
-  { to: '/yearly', label: 'Yearly Insights', icon: Trophy, free: false },
   { to: '/budget', label: 'Budget', icon: ArrowUpDown, free: true },
+  { to: '/expenses', label: 'Expenses', icon: Receipt, free: false },
   { to: '/recurring', label: 'Recurring', icon: Repeat, free: false },
   { to: '/savings-goals', label: 'Savings Goals', icon: Target, free: false },
   { to: '/analytics', label: 'Analytics', icon: BarChart3, free: false },
+  { to: '/yearly', label: 'Yearly Insights', icon: Trophy, free: false },
   { to: '/profile', label: 'Profile', icon: User, free: true },
 ];
 
@@ -21,12 +22,11 @@ export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isPro = profile.tier === 'pro';
 
-  const navItems = [
-    ...allNavItems,
-    ...(isPro && settings.expense_tracking_enabled
-      ? [{ to: '/expenses', label: 'Expenses', icon: Receipt, free: false }]
-      : []),
-  ];
+  const navItems = allNavItems.filter(item => {
+    if (!item.free && !isPro) return false;
+    if (item.to === '/expenses' && !settings.expense_tracking_enabled) return false;
+    return true;
+  });
 
   const handleLogout = async () => {
     await signOut();
@@ -52,21 +52,7 @@ export default function AppLayout() {
         </div>
 
         <nav className="flex-1 p-3 space-y-0.5">
-          {navItems.map(item => {
-            const locked = !item.free && !isPro;
-            if (locked) {
-              return (
-                <div
-                  key={item.to}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-sidebar-muted/50 cursor-not-allowed select-none"
-                >
-                  <item.icon className="w-5 h-5" />
-                  <span className="flex-1">{item.label}</span>
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-semibold">PRO</Badge>
-                </div>
-              );
-            }
-            return (
+          {navItems.map(item => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -81,8 +67,7 @@ export default function AppLayout() {
                 <item.icon className="w-5 h-5" />
                 {item.label}
               </NavLink>
-            );
-          })}
+          ))}
         </nav>
 
         <div className="p-3 border-t border-sidebar-border space-y-1">
