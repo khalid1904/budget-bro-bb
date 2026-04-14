@@ -67,8 +67,7 @@ export default function AppLayout() {
                 <item.icon className="w-5 h-5" />
                 {item.label}
               </NavLink>
-            );
-          })}
+          ))}
         </nav>
 
         <div className="p-3 border-t border-sidebar-border space-y-1">
