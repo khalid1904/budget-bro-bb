@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useBudget } from '@/lib/budget-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrendingUp, TrendingDown, Wallet, Plus, AlertTriangle, PiggyBank, BarChart3 } from 'lucide-react';
 import { getCategoryType } from '@/lib/types';
 import { getCategoryIcon } from '@/lib/category-icons';
@@ -14,6 +15,8 @@ const CHART_COLORS = [
   'hsl(160, 84%, 39%)', 'hsl(142, 71%, 45%)', 'hsl(200, 60%, 50%)',
   'hsl(280, 60%, 50%)', 'hsl(340, 60%, 50%)', 'hsl(38, 92%, 50%)',
 ];
+
+const donutColors = ['hsl(0, 72%, 51%)', 'hsl(160, 84%, 39%)', 'hsl(38, 92%, 50%)', 'hsl(142, 71%, 45%)'];
 
 function getMonthOptions() {
   const months: string[] = [];
@@ -31,7 +34,8 @@ function formatMonth(m: string) {
 }
 
 export default function DashboardPage() {
-  const { currentMonth, setCurrentMonth, transactions, formatCurrency, profile } = useBudget();
+  const { currentMonth, setCurrentMonth, transactions, expenses, settings, formatCurrency, profile } = useBudget();
+  const [view, setView] = useState<'budget' | 'expense'>('budget');
 
   const monthTxns = useMemo(() => transactions.filter(t => t.month === currentMonth), [transactions, currentMonth]);
   const incoming = useMemo(() => monthTxns.filter(t => t.type === 'incoming').reduce((s, t) => s + t.amount, 0), [monthTxns]);
@@ -64,13 +68,11 @@ export default function DashboardPage() {
     }));
   }, [transactions]);
 
-  // Recent transactions (latest 5)
   const recentTxns = useMemo(() =>
     monthTxns.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5),
     [monthTxns]
   );
 
-  // Donut data for total budget allocation
   const donutData = useMemo(() => {
     const data = [];
     if (spending > 0) data.push({ name: 'Spending', value: spending });
@@ -80,37 +82,61 @@ export default function DashboardPage() {
     return data;
   }, [spending, savings, investments, inHand]);
 
-  const donutColors = ['hsl(0, 72%, 51%)', 'hsl(160, 84%, 39%)', 'hsl(38, 92%, 50%)', 'hsl(142, 71%, 45%)'];
+  // ===== Expense view computations =====
+  const monthExpenses = useMemo(() => expenses.filter(e => e.month === currentMonth), [expenses, currentMonth]);
+  const totalSpent = useMemo(() => monthExpenses.reduce((s, e) => s + e.amount, 0), [monthExpenses]);
+  const expSpending = useMemo(() => monthExpenses.filter(e => getCategoryType(e.category) === 'spending').reduce((s, e) => s + e.amount, 0), [monthExpenses]);
+  const expSavings = useMemo(() => monthExpenses.filter(e => getCategoryType(e.category) === 'savings').reduce((s, e) => s + e.amount, 0), [monthExpenses]);
+  const expInvestments = useMemo(() => monthExpenses.filter(e => getCategoryType(e.category) === 'investment').reduce((s, e) => s + e.amount, 0), [monthExpenses]);
+  const remaining = incoming - totalSpent;
+  const remainingNeg = remaining < 0;
 
+  const expenseDonutData = useMemo(() => {
+    const data = [];
+    if (expSpending > 0) data.push({ name: 'Spending', value: expSpending });
+    if (expSavings > 0) data.push({ name: 'Savings', value: expSavings });
+    if (expInvestments > 0) data.push({ name: 'Investments', value: expInvestments });
+    if (remaining > 0) data.push({ name: 'Remaining', value: remaining });
+    return data;
+  }, [expSpending, expSavings, expInvestments, remaining]);
+
+  const expenseCategoryData = useMemo(() => {
+    const map: Record<string, number> = {};
+    monthExpenses.forEach(e => { map[e.category] = (map[e.category] || 0) + e.amount; });
+    return Object.entries(map).map(([name, value]) => ({ name, value }));
+  }, [monthExpenses]);
+
+  const recentExpenses = useMemo(() =>
+    [...monthExpenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5),
+    [monthExpenses]
+  );
+
+  const expenseTrend = useMemo(() => {
+    const byMonth: Record<string, { income: number; expenses: number }> = {};
+    transactions.forEach(t => {
+      if (!byMonth[t.month]) byMonth[t.month] = { income: 0, expenses: 0 };
+      if (t.type === 'incoming') byMonth[t.month].income += t.amount;
+    });
+    expenses.forEach(e => {
+      if (!byMonth[e.month]) byMonth[e.month] = { income: 0, expenses: 0 };
+      byMonth[e.month].expenses += e.amount;
+    });
+    return Object.entries(byMonth).sort(([a], [b]) => a.localeCompare(b)).slice(-6).map(([m, d]) => ({
+      month: formatMonth(m).split(' ')[0]?.slice(0, 3), ...d
+    }));
+  }, [transactions, expenses]);
+
+  const showTabs = settings.expense_tracking_enabled && expenses.length > 0;
   const displayName = profile.username || 'Bro';
 
-  return (
-    <div className="space-y-6">
-      {/* Greeting */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
-            Yo, {displayName}! 🤙
-          </h1>
-          <p className="text-muted-foreground mt-1">Your financial overview for {formatMonth(currentMonth)}</p>
-        </motion.div>
-        <div className="flex items-center gap-3">
-          <Select value={currentMonth} onValueChange={setCurrentMonth}>
-            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {monthOptions.map(m => <SelectItem key={m} value={m}>{formatMonth(m)}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Button asChild><Link to="/budget"><Plus className="w-4 h-4 mr-1" /> Add</Link></Button>
-        </div>
-      </div>
-
+  // ===== Reusable view renderers =====
+  const renderBudgetView = () => (
+    <>
       {/* Hero Section: Donut + Summary */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
         <Card className="shadow-elevated overflow-hidden">
           <CardContent className="p-6 md:p-8">
             <div className="flex flex-col md:flex-row items-center gap-8">
-              {/* Donut */}
               <div className="relative w-48 h-48 shrink-0">
                 {donutData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
@@ -132,7 +158,6 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Summary Cards inline */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 w-full">
                 {[
                   { label: 'Income', value: incoming, icon: TrendingUp, color: 'text-success', bg: 'bg-success/10' },
@@ -163,9 +188,7 @@ export default function DashboardPage() {
         </Card>
       </motion.div>
 
-      {/* Recent Transactions + Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Transactions */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <Card className="shadow-card h-full">
             <CardHeader className="pb-3">
@@ -205,11 +228,10 @@ export default function DashboardPage() {
           </Card>
         </motion.div>
 
-        {/* Category Donut (Outgoing) */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <Card className="shadow-card h-full">
             <CardHeader>
-              <CardTitle className="font-display text-lg"><CardTitle className="font-display text-lg">Budget by Category</CardTitle></CardTitle>
+              <CardTitle className="font-display text-lg">Budget by Category</CardTitle>
             </CardHeader>
             <CardContent>
               {categoryData.outgoing.length > 0 ? (
@@ -225,7 +247,7 @@ export default function DashboardPage() {
                     </ResponsiveContainer>
                   </div>
                   <div className="space-y-2 flex-1">
-                    {categoryData.outgoing.map((d, i) => {
+                    {categoryData.outgoing.map((d) => {
                       const catIcon = getCategoryIcon(d.name);
                       const IconComp = catIcon.icon;
                       return (
@@ -249,7 +271,6 @@ export default function DashboardPage() {
           </Card>
         </motion.div>
 
-        {/* Monthly Trend */}
         {monthlyTrend.length > 1 && (
           <Card className="shadow-card lg:col-span-2">
             <CardHeader>
@@ -271,6 +292,220 @@ export default function DashboardPage() {
           </Card>
         )}
       </div>
+    </>
+  );
+
+  const renderExpenseView = () => {
+    if (monthExpenses.length === 0) {
+      return (
+        <Card className="shadow-card">
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">No expenses recorded for {formatMonth(currentMonth)}.</p>
+            <Button asChild className="mt-4">
+              <Link to="/expenses"><Plus className="w-4 h-4 mr-1" /> Record Expense</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <Card className="shadow-elevated overflow-hidden">
+            <CardContent className="p-6 md:p-8">
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                <div className="relative w-48 h-48 shrink-0">
+                  {expenseDonutData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={expenseDonutData} dataKey="value" cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} strokeWidth={0}>
+                          {expenseDonutData.map((_, i) => <Cell key={i} fill={donutColors[i % donutColors.length]} />)}
+                        </Pie>
+                        <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="w-full h-full rounded-full border-[12px] border-muted flex items-center justify-center">
+                      <span className="text-muted-foreground text-sm">No data</span>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-xs text-muted-foreground">Total Spent</span>
+                    <span className="text-lg font-display font-bold text-foreground">{formatCurrency(totalSpent)}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1 w-full">
+                  {[
+                    { label: 'Income', value: incoming, icon: TrendingUp, color: 'text-success', bg: 'bg-success/10' },
+                    { label: 'Spent', value: expSpending, icon: TrendingDown, color: 'text-destructive', bg: 'bg-destructive/10' },
+                    { label: 'Saved', value: expSavings, icon: PiggyBank, color: 'text-primary', bg: 'bg-primary/10' },
+                    { label: 'Invested', value: expInvestments, icon: BarChart3, color: 'text-warning', bg: 'bg-warning/10' },
+                    { label: 'Remaining', value: remaining, icon: Wallet, color: remainingNeg ? 'text-destructive' : 'text-success', bg: remainingNeg ? 'bg-destructive/10' : 'bg-success/10' },
+                  ].map((card) => (
+                    <div key={card.label} className={`rounded-xl p-3 ${card.bg}`}>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <card.icon className={`w-4 h-4 ${card.color}`} />
+                        <span className="text-xs text-muted-foreground">{card.label}</span>
+                      </div>
+                      <p className={`text-lg font-display font-bold ${card.color}`}>
+                        {formatCurrency(card.value)}
+                      </p>
+                      {card.label === 'Remaining' && remainingNeg && (
+                        <div className="flex items-center gap-1 mt-1 text-destructive text-xs">
+                          <AlertTriangle className="w-3 h-3" />
+                          <span>Overspent</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <Card className="shadow-card h-full">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="font-display text-lg">Recent Expenses</CardTitle>
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to="/expenses" className="text-primary text-xs">View all</Link>
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {recentExpenses.map(ex => {
+                    const catIcon = getCategoryIcon(ex.category);
+                    const IconComp = catIcon.icon;
+                    return (
+                      <div key={ex.id} className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: catIcon.bg }}>
+                          <IconComp className="w-5 h-5" style={{ color: catIcon.fg }} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground truncate">{ex.title}</p>
+                          <p className="text-xs text-muted-foreground">{ex.category} · {new Date(ex.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                        </div>
+                        <span className="text-sm font-display font-semibold whitespace-nowrap text-destructive">
+                          -{formatCurrency(ex.amount)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+            <Card className="shadow-card h-full">
+              <CardHeader>
+                <CardTitle className="font-display text-lg">Expenses by Category</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {expenseCategoryData.length > 0 ? (
+                  <div className="flex items-center gap-4">
+                    <div className="w-40 h-40">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={expenseCategoryData} dataKey="value" cx="50%" cy="50%" innerRadius={30} outerRadius={60} strokeWidth={0}>
+                            {expenseCategoryData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                          </Pie>
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="space-y-2 flex-1">
+                      {expenseCategoryData.map((d) => {
+                        const catIcon = getCategoryIcon(d.name);
+                        const IconComp = catIcon.icon;
+                        return (
+                          <div key={d.name} className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ backgroundColor: catIcon.bg }}>
+                                <IconComp className="w-3.5 h-3.5" style={{ color: catIcon.fg }} />
+                              </div>
+                              <span className="text-foreground">{d.name}</span>
+                            </div>
+                            <span className="text-muted-foreground">{formatCurrency(d.value)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground py-8 text-center">No expenses yet.</p>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {expenseTrend.length > 1 && (
+            <Card className="shadow-card lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="font-display text-lg">Income vs Expenses</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-60">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={expenseTrend}>
+                      <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                      <YAxis tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                      <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                      <Bar dataKey="income" fill="hsl(160, 84%, 39%)" radius={[6, 6, 0, 0]} name="Income" />
+                      <Bar dataKey="expenses" fill="hsl(0, 72%, 58%)" radius={[6, 6, 0, 0]} name="Expenses" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+          <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
+            Yo, {displayName}! 🤙
+          </h1>
+          <p className="text-muted-foreground mt-1">Your financial overview for {formatMonth(currentMonth)}</p>
+        </motion.div>
+        <div className="flex items-center gap-3">
+          <Select value={currentMonth} onValueChange={setCurrentMonth}>
+            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {monthOptions.map(m => <SelectItem key={m} value={m}>{formatMonth(m)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button asChild><Link to={view === 'expense' ? '/expenses' : '/budget'}><Plus className="w-4 h-4 mr-1" /> Add</Link></Button>
+        </div>
+      </div>
+
+      {showTabs ? (
+        <Tabs value={view} onValueChange={(v) => setView(v as 'budget' | 'expense')} className="space-y-6">
+          <TabsList className="grid w-full max-w-sm grid-cols-2">
+            <TabsTrigger value="budget">Income vs Budget</TabsTrigger>
+            <TabsTrigger value="expense">Income vs Expense</TabsTrigger>
+          </TabsList>
+          <TabsContent value="budget" className="space-y-6 mt-0">
+            {renderBudgetView()}
+          </TabsContent>
+          <TabsContent value="expense" className="space-y-6 mt-0">
+            {renderExpenseView()}
+          </TabsContent>
+        </Tabs>
+      ) : (
+        renderBudgetView()
+      )}
     </div>
   );
 }
