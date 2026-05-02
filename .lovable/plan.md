@@ -1,27 +1,42 @@
+## Plan: Income vs Expense Dashboard View
 
+Today, the Dashboard shows Income vs Budget (planned outgoing). When the Expense Tracking module is enabled, add a parallel Income vs Expense view that mirrors the same layout but uses recorded expenses instead of budget allocations.
 
-## Plan: Add Expense-Based Reports to Analytics
+### UX
 
-When expense tracking is enabled and expenses exist for the selected month, add three new report sections to the Analytics page.
+On the Dashboard, when `settings.expense_tracking_enabled` is true AND there is at least one recorded expense, show a tab switcher at the top of the page:
 
-### Changes — `src/pages/Analytics.tsx` only
+- **Budget View** (default) — current dashboard, unchanged
+- **Expense View** — same layout, swapped to actual expenses
 
-**1. Pull expense data and settings from context**
-- Destructure `expenses`, `settings` from `useBudget()`
-- Compute `expenseEnabled = settings.expense_tracking_enabled`
-- Filter `monthExpenses` for `currentMonth`
+When expense tracking is disabled or there are no expenses, the dashboard renders exactly as today (no tabs shown).
 
-**2. New computed data (all gated on `expenseEnabled && monthExpenses.length > 0`)**
+### Expense View contents (mirrors Budget View)
 
-- **Expense by Category pie chart** — group expenses by category, same donut style as existing breakdowns
-- **Budget vs Actual bar chart** — for each outgoing category, show budgeted amount (from transactions) vs actual spent (from expenses) side by side
-- **Expense Trend line chart** — across last 12 months, plot total expenses per month (similar to existing savings trend)
-- **Summary card row** — Total Expenses, Budget Utilization % (total expenses / total allocations × 100), Over-budget categories count
+Reuses the same hero card, donut, summary tiles, recent list, category donut, and trend chart styling.
 
-**3. Render conditionally**
-- After the existing charts, add a section header "Expense Reports" with these new cards
-- Only rendered when expense tracking is enabled AND there are expenses recorded
-- Uses same card styling, color palette, and chart components as existing sections
+1. **Hero donut + summary tiles** (uses `expenses` for selected month)
+   - Donut center: "Total Spent" = sum of month's expenses
+   - Donut slices: Spending / Savings / Investments / Remaining (Income − Expenses), classified by `getCategoryType(expense.category)`
+   - Summary tiles: Income, Spent (Spending), Saved (actual), Invested (actual), Remaining (Income − Total Expenses) with deficit warning if negative
 
-### No database or routing changes needed — this is purely a UI addition to the existing Analytics page.
+2. **Recent Expenses** (latest 5 from `expenses` for the month) — same row format, always shown as outgoing (red), with category icon
 
+3. **Expenses by Category** donut + legend — grouped from month's expenses
+
+4. **Monthly Trend** bar chart — last 6 months: Income vs Total Expenses (replaces "spending" series with actual expense totals per month)
+
+### Technical Changes — `src/pages/Dashboard.tsx` only
+
+- Pull `expenses`, `settings` from `useBudget()`
+- Compute month-scoped expenses + the same aggregations (spending/savings/investments/total/remaining/category groups/6-month trend) but from `expenses` instead of outgoing transactions
+- Add `useState<'budget' | 'expense'>('budget')` for the active view
+- Compute `showTabs = settings.expense_tracking_enabled && expenses.length > 0`
+- When `showTabs`, render `<Tabs>` (shadcn `tabs.tsx`) with two triggers: "Budget" and "Expense"; when false, just render the Budget view as today
+- Extract Budget view JSX as-is into the Budget tab; build Expense tab JSX by cloning the same structure with expense-derived data and relabeled titles ("Total Spent", "Recent Expenses", "Expenses by Category", "Income vs Expenses")
+- No changes to context, routing, types, database, or any other file
+
+### Empty states
+
+- Expense tab visible but selected month has no expenses → show a "No expenses recorded for this month" empty card with a link to `/expenses`
+- Budget tab behavior unchanged
