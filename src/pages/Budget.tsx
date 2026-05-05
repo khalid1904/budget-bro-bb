@@ -46,6 +46,86 @@ export default function BudgetPage() {
   const [filterCategory, setFilterCategory] = useState('all');
   const [newCategoryDialogOpen, setNewCategoryDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importSourceMonth, setImportSourceMonth] = useState<string>('');
+  const [importMode, setImportMode] = useState<'all' | 'select'>('all');
+  const [selectedImportIds, setSelectedImportIds] = useState<Set<string>>(new Set());
+
+  const availableSourceMonths = useMemo(() => {
+    const set = new Set(transactions.map(t => t.month).filter(m => m !== currentMonth));
+    return Array.from(set).sort().reverse();
+  }, [transactions, currentMonth]);
+
+  const sourceTxns = useMemo(
+    () => transactions.filter(t => t.month === importSourceMonth),
+    [transactions, importSourceMonth]
+  );
+
+  const toggleImportId = (id: string) => {
+    setSelectedImportIds(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
+
+  const toggleGroup = (type: 'incoming' | 'outgoing') => {
+    const ids = sourceTxns.filter(t => t.type === type).map(t => t.id);
+    const allSelected = ids.length > 0 && ids.every(id => selectedImportIds.has(id));
+    setSelectedImportIds(prev => {
+      const n = new Set(prev);
+      ids.forEach(id => allSelected ? n.delete(id) : n.add(id));
+      return n;
+    });
+  };
+
+  const txnsToImport = useMemo(() => {
+    if (importMode === 'all') return sourceTxns;
+    return sourceTxns.filter(t => selectedImportIds.has(t.id));
+  }, [importMode, sourceTxns, selectedImportIds]);
+
+  const openImportDialog = () => {
+    if (availableSourceMonths.length > 0) setImportSourceMonth(availableSourceMonths[0]);
+    setImportMode('all');
+    setSelectedImportIds(new Set());
+    setImportDialogOpen(true);
+  };
+
+  const handleImport = async () => {
+    if (txnsToImport.length === 0) return;
+    const [yStr, mStr] = currentMonth.split('-');
+    const year = +yStr, mon = +mStr;
+    const lastDay = new Date(year, mon, 0).getDate();
+    const activeGoalIds = new Set(savingsGoals.filter(g => g.status === 'active').map(g => g.id));
+    const existing = new Set(
+      transactions
+        .filter(t => t.month === currentMonth)
+        .map(t => `${t.type}|${t.title.toLowerCase()}|${t.amount}|${t.category}`)
+    );
+    let imported = 0, skipped = 0;
+    for (const t of txnsToImport) {
+      const key = `${t.type}|${t.title.toLowerCase()}|${t.amount}|${t.category}`;
+      if (existing.has(key)) { skipped++; continue; }
+      const day = Math.min(new Date(t.date).getDate(), lastDay);
+      const newDate = `${year}-${String(mon).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      await addTransaction({
+        title: t.title,
+        amount: t.amount,
+        category: t.category,
+        date: newDate,
+        type: t.type,
+        month: currentMonth,
+        goal_id: t.goal_id && activeGoalIds.has(t.goal_id) ? t.goal_id : null,
+      });
+      existing.add(key);
+      imported++;
+    }
+    toast({
+      title: `Imported ${imported} ${imported === 1 ? 'entry' : 'entries'}`,
+      description: skipped > 0 ? `${skipped} duplicate${skipped === 1 ? '' : 's'} skipped.` : `From ${formatMonth(importSourceMonth)}`,
+    });
+    setImportDialogOpen(false);
+  };
 
   const monthOptions = getMonthOptions();
 
