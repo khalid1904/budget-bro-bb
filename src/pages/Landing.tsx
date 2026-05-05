@@ -250,10 +250,41 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Contact */}
+      <section id="contact" className="py-20 bg-muted/50">
+        <div className="container mx-auto px-4">
+          <div className="max-w-2xl mx-auto text-center">
+            <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-6">
+              <Mail className="w-7 h-7 text-primary" />
+            </div>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-4">
+              Get in touch
+            </h2>
+            <p className="text-muted-foreground text-lg mb-8">
+              Questions, feedback, or want to upgrade to Pro? Drop us a line — we read every email.
+            </p>
+            <Button size="lg" className="text-base px-8 py-6" asChild>
+              <a href={`mailto:${CONTACT_EMAIL}?subject=Budget%20Bro%20Enquiry`}>
+                <Mail className="mr-2 w-5 h-5" /> Email us
+              </a>
+            </Button>
+            <p className="text-sm text-muted-foreground mt-4">
+              or write to{' '}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary font-medium hover:underline">
+                {CONTACT_EMAIL}
+              </a>
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="border-t border-border py-8">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          © 2026 Budget Bro. Your money, your rules. 🤙
+        <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
+          <span>© 2026 Budget Bro. Your money, your rules. 🤙</span>
+          <a href={`mailto:${CONTACT_EMAIL}`} className="flex items-center gap-1.5 hover:text-primary transition-colors">
+            <Mail className="w-4 h-4" /> {CONTACT_EMAIL}
+          </a>
         </div>
       </footer>
     </div>
