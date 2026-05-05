@@ -1,42 +1,43 @@
-## Plan: Income vs Expense Dashboard View
+## Plan: Budget Import from Previous Month (Pro feature)
 
-Today, the Dashboard shows Income vs Budget (planned outgoing). When the Expense Tracking module is enabled, add a parallel Income vs Expense view that mirrors the same layout but uses recorded expenses instead of budget allocations.
+Add the ability to copy budget entries from any previous month into the currently selected month on the Budget page. Pro-only.
 
-### UX
+### Feature name (UI)
+**"Import from Month"** — button in the Budget page header next to "Add Entry", with a `Copy` icon. Inside the dialog the heading reads **"Import Budget from Another Month"**.
 
-On the Dashboard, when `settings.expense_tracking_enabled` is true AND there is at least one recorded expense, show a tab switcher at the top of the page:
+### Scope
+- Applies to **Budget transactions only** (income + allocations). Expenses are NOT copied.
+- Available only when `profile.tier === 'pro'`. Free users do not see the button.
+- User can choose:
+  1. **Copy entire month** — all incoming + outgoing entries from the source month.
+  2. **Select entries** — checkbox list to pick specific transactions to copy.
+- Copied entries are inserted as new transactions for the current month, with:
+  - `month` set to current month
+  - `date` shifted to the same day-of-month in the current month (clamped to last day if needed)
+  - `recurring_rule_id` set to `null` (copies are standalone, not tied to recurrence)
+  - `goal_id` preserved if the linked goal still exists and is active, else `null`
 
-- **Budget View** (default) — current dashboard, unchanged
-- **Expense View** — same layout, swapped to actual expenses
+### Changes
 
-When expense tracking is disabled or there are no expenses, the dashboard renders exactly as today (no tabs shown).
+**`src/pages/Budget.tsx`** (only file modified)
 
-### Expense View contents (mirrors Budget View)
+1. Import `Copy` icon from lucide-react and `Checkbox`, `RadioGroup`, `RadioGroupItem`, `ScrollArea` from ui.
+2. Pull `profile` from `useBudget()` and compute `const isPro = profile.tier === 'pro'`.
+3. Add state:
+   - `importDialogOpen`, `importSourceMonth` (default = previous month), `importMode` ('all' | 'select'), `selectedImportIds: Set<string>`.
+4. Compute `availableSourceMonths` = unique months from `transactions` excluding `currentMonth`, sorted descending.
+5. Compute `sourceTxns` = transactions filtered by `importSourceMonth`, grouped by type for display.
+6. Add **Import from Month** button in the header action row (next to Add Entry), rendered only when `isPro`.
+7. Build dialog:
+   - Source month `Select` populated from `availableSourceMonths` (empty state: "No previous months with budget entries").
+   - `RadioGroup` for mode: "Copy entire month" / "Select specific entries".
+   - When mode is `select`: show a scrollable list grouped by Income / Allocations with checkboxes; include a "Select all" toggle per group.
+   - Footer summary: "X entries will be copied to {currentMonth label}".
+   - Confirm button: disabled if nothing to copy.
+8. On confirm, iterate the chosen transactions and call `addTransaction` for each with the remapped fields described in Scope. Show a toast: `"Imported N entries from {sourceMonth label}"`. Close dialog and reset state.
+9. Skip entries whose identical (title + amount + category + type) already exist in the current month to avoid accidental duplicates; show a sub-toast count of skipped duplicates if any.
 
-Reuses the same hero card, donut, summary tiles, recent list, category donut, and trend chart styling.
-
-1. **Hero donut + summary tiles** (uses `expenses` for selected month)
-   - Donut center: "Total Spent" = sum of month's expenses
-   - Donut slices: Spending / Savings / Investments / Remaining (Income − Expenses), classified by `getCategoryType(expense.category)`
-   - Summary tiles: Income, Spent (Spending), Saved (actual), Invested (actual), Remaining (Income − Total Expenses) with deficit warning if negative
-
-2. **Recent Expenses** (latest 5 from `expenses` for the month) — same row format, always shown as outgoing (red), with category icon
-
-3. **Expenses by Category** donut + legend — grouped from month's expenses
-
-4. **Monthly Trend** bar chart — last 6 months: Income vs Total Expenses (replaces "spending" series with actual expense totals per month)
-
-### Technical Changes — `src/pages/Dashboard.tsx` only
-
-- Pull `expenses`, `settings` from `useBudget()`
-- Compute month-scoped expenses + the same aggregations (spending/savings/investments/total/remaining/category groups/6-month trend) but from `expenses` instead of outgoing transactions
-- Add `useState<'budget' | 'expense'>('budget')` for the active view
-- Compute `showTabs = settings.expense_tracking_enabled && expenses.length > 0`
-- When `showTabs`, render `<Tabs>` (shadcn `tabs.tsx`) with two triggers: "Budget" and "Expense"; when false, just render the Budget view as today
-- Extract Budget view JSX as-is into the Budget tab; build Expense tab JSX by cloning the same structure with expense-derived data and relabeled titles ("Total Spent", "Recent Expenses", "Expenses by Category", "Income vs Expenses")
-- No changes to context, routing, types, database, or any other file
-
-### Empty states
-
-- Expense tab visible but selected month has no expenses → show a "No expenses recorded for this month" empty card with a link to `/expenses`
-- Budget tab behavior unchanged
+### Out of scope
+- No DB schema changes — uses existing `addTransaction` flow.
+- No changes to Expenses, Recurring, or other pages.
+- No backfill/undo (user can delete copied entries individually).
