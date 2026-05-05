@@ -1,15 +1,22 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, BarChart3, Shield, Smartphone, Zap, Target, Download, Check, X } from 'lucide-react';
+import { ArrowRight, BarChart3, Shield, Smartphone, Zap, Target, Download, Check, X, Mail, Repeat, Receipt, Copy, Activity, CalendarRange } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+const CONTACT_EMAIL = 'khalidahameds@gmail.com';
+
 const features = [
-  { icon: BarChart3, title: 'Smart Analytics', desc: 'Category-wise breakdowns, trend charts, and savings ratios at a glance.' },
-  { icon: Shield, title: 'Secure & Private', desc: 'Your financial data stays yours. Encrypted and protected.' },
-  { icon: Smartphone, title: 'Works Everywhere', desc: 'Installable PWA — use it on desktop, tablet, or mobile.' },
-  { icon: Zap, title: 'Lightning Fast', desc: 'Add entries in seconds. No bloat, no friction.' },
-  { icon: Target, title: 'Budget Goals', desc: 'Set savings targets and track your progress month by month.' },
+  { icon: BarChart3, title: 'Smart Analytics', desc: 'Category breakdowns, trends, and savings ratios at a glance.' },
+  { icon: Receipt, title: 'Expense Tracking', desc: 'Log actual spend and compare it against your monthly budget.' },
+  { icon: Activity, title: 'Income vs Expense', desc: 'Switch your dashboard between planned budget and real spending.' },
+  { icon: Copy, title: 'Import from Month', desc: 'Copy a previous month\u2019s budget in one click \u2014 all or pick & choose.' },
+  { icon: Repeat, title: 'Recurring Entries', desc: 'Set it once. Salary, rent, SIPs auto-populate every month.' },
+  { icon: Target, title: 'Savings Goals', desc: 'Set targets, link contributions, and watch progress grow.' },
+  { icon: CalendarRange, title: 'Yearly Insights', desc: 'Calendar or financial year views with health score & metrics.' },
   { icon: Download, title: 'Excel Export', desc: 'Download your monthly data as a spreadsheet anytime.' },
+  { icon: Smartphone, title: 'Installable PWA', desc: 'Use it on desktop, tablet, or mobile \u2014 even offline.' },
+  { icon: Shield, title: 'Secure & Private', desc: 'Your financial data stays yours. Encrypted and protected.' },
+  { icon: Zap, title: 'Lightning Fast', desc: 'Add entries in seconds. No bloat, no friction.' },
 ];
 
 export default function LandingPage() {
