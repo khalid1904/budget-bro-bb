@@ -248,6 +248,79 @@ export default function BudgetPage() {
                 </div>
               </DialogContent>
             </Dialog>
+            {isPro && (
+              <Button variant="outline" onClick={openImportDialog}>
+                <Copy className="w-4 h-4 mr-1" /> Import from Month
+              </Button>
+            )}
+            <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader><DialogTitle className="font-display">Import Budget from Another Month</DialogTitle></DialogHeader>
+                {availableSourceMonths.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    No previous months with budget entries.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Source Month</Label>
+                      <Select value={importSourceMonth} onValueChange={(v) => { setImportSourceMonth(v); setSelectedImportIds(new Set()); }}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {availableSourceMonths.map(m => <SelectItem key={m} value={m}>{formatMonth(m)}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>What to copy</Label>
+                      <RadioGroup value={importMode} onValueChange={(v) => setImportMode(v as 'all' | 'select')}>
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem value="all" id="imp-all" />
+                          <Label htmlFor="imp-all" className="font-normal cursor-pointer">Copy entire month ({sourceTxns.length} entries)</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem value="select" id="imp-sel" />
+                          <Label htmlFor="imp-sel" className="font-normal cursor-pointer">Select specific entries</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                    {importMode === 'select' && (
+                      <ScrollArea className="h-64 border rounded-md p-3">
+                        {(['incoming', 'outgoing'] as const).map(type => {
+                          const items = sourceTxns.filter(t => t.type === type);
+                          if (items.length === 0) return null;
+                          const allSel = items.every(i => selectedImportIds.has(i.id));
+                          return (
+                            <div key={type} className="mb-3 last:mb-0">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-semibold uppercase text-muted-foreground">{type === 'incoming' ? 'Income' : 'Allocations'}</span>
+                                <button type="button" onClick={() => toggleGroup(type)} className="text-xs text-primary hover:underline">
+                                  {allSel ? 'Deselect all' : 'Select all'}
+                                </button>
+                              </div>
+                              {items.map(t => (
+                                <label key={t.id} className="flex items-center gap-2 py-1.5 cursor-pointer">
+                                  <Checkbox checked={selectedImportIds.has(t.id)} onCheckedChange={() => toggleImportId(t.id)} />
+                                  <span className="flex-1 text-sm truncate">{t.title}</span>
+                                  <span className="text-xs text-muted-foreground">{t.category}</span>
+                                  <span className="text-sm font-medium">{formatCurrency(t.amount)}</span>
+                                </label>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </ScrollArea>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                      {txnsToImport.length} {txnsToImport.length === 1 ? 'entry' : 'entries'} will be copied to {formatMonth(currentMonth)}.
+                    </p>
+                    <Button onClick={handleImport} className="w-full" disabled={txnsToImport.length === 0}>
+                      Import {txnsToImport.length > 0 ? `${txnsToImport.length} ` : ''}{txnsToImport.length === 1 ? 'Entry' : 'Entries'}
+                    </Button>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
             <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
               <DialogTrigger asChild><Button className="sm:w-auto w-full"><Plus className="w-4 h-4 mr-1" /> Add Entry</Button></DialogTrigger>
               <DialogContent>
