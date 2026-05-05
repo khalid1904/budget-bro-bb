@@ -1,15 +1,22 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, BarChart3, Shield, Smartphone, Zap, Target, Download, Check, X } from 'lucide-react';
+import { ArrowRight, BarChart3, Shield, Smartphone, Zap, Target, Download, Check, X, Mail, Repeat, Receipt, Copy, Activity, CalendarRange } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+const CONTACT_EMAIL = 'khalidahameds@gmail.com';
+
 const features = [
-  { icon: BarChart3, title: 'Smart Analytics', desc: 'Category-wise breakdowns, trend charts, and savings ratios at a glance.' },
-  { icon: Shield, title: 'Secure & Private', desc: 'Your financial data stays yours. Encrypted and protected.' },
-  { icon: Smartphone, title: 'Works Everywhere', desc: 'Installable PWA — use it on desktop, tablet, or mobile.' },
-  { icon: Zap, title: 'Lightning Fast', desc: 'Add entries in seconds. No bloat, no friction.' },
-  { icon: Target, title: 'Budget Goals', desc: 'Set savings targets and track your progress month by month.' },
+  { icon: BarChart3, title: 'Smart Analytics', desc: 'Category breakdowns, trends, and savings ratios at a glance.' },
+  { icon: Receipt, title: 'Expense Tracking', desc: 'Log actual spend and compare it against your monthly budget.' },
+  { icon: Activity, title: 'Income vs Expense', desc: 'Switch your dashboard between planned budget and real spending.' },
+  { icon: Copy, title: 'Import from Month', desc: 'Copy a previous month\u2019s budget in one click \u2014 all or pick & choose.' },
+  { icon: Repeat, title: 'Recurring Entries', desc: 'Set it once. Salary, rent, SIPs auto-populate every month.' },
+  { icon: Target, title: 'Savings Goals', desc: 'Set targets, link contributions, and watch progress grow.' },
+  { icon: CalendarRange, title: 'Yearly Insights', desc: 'Calendar or financial year views with health score & metrics.' },
   { icon: Download, title: 'Excel Export', desc: 'Download your monthly data as a spreadsheet anytime.' },
+  { icon: Smartphone, title: 'Installable PWA', desc: 'Use it on desktop, tablet, or mobile \u2014 even offline.' },
+  { icon: Shield, title: 'Secure & Private', desc: 'Your financial data stays yours. Encrypted and protected.' },
+  { icon: Zap, title: 'Lightning Fast', desc: 'Add entries in seconds. No bloat, no friction.' },
 ];
 
 export default function LandingPage() {
@@ -21,7 +28,8 @@ export default function LandingPage() {
           <Link to="/" className="flex items-center gap-2">
             <img src="/brand-hero.jpg" alt="Budget Bro" className="h-10 rounded-xl" />
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-3">
+            <Button variant="ghost" asChild className="hidden sm:inline-flex"><a href="#contact">Contact</a></Button>
             <Button variant="ghost" asChild><Link to="/login">Login</Link></Button>
             <Button asChild><Link to="/register">Get Started</Link></Button>
           </div>
@@ -217,7 +225,9 @@ export default function LandingPage() {
                 ))}
               </ul>
               <Button size="lg" className="w-full" asChild>
-                <Link to="/register">Get Started <ArrowRight className="ml-2 w-4 h-4" /></Link>
+                <a href={`mailto:${CONTACT_EMAIL}?subject=Budget%20Bro%20Pro%20Upgrade`}>
+                  <Mail className="mr-2 w-4 h-4" /> Contact for Pro
+                </a>
               </Button>
             </motion.div>
           </div>
@@ -243,10 +253,41 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Contact */}
+      <section id="contact" className="py-20 bg-muted/50">
+        <div className="container mx-auto px-4">
+          <div className="max-w-2xl mx-auto text-center">
+            <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-6">
+              <Mail className="w-7 h-7 text-primary" />
+            </div>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-4">
+              Get in touch
+            </h2>
+            <p className="text-muted-foreground text-lg mb-8">
+              Questions, feedback, or want to upgrade to Pro? Drop us a line — we read every email.
+            </p>
+            <Button size="lg" className="text-base px-8 py-6" asChild>
+              <a href={`mailto:${CONTACT_EMAIL}?subject=Budget%20Bro%20Enquiry`}>
+                <Mail className="mr-2 w-5 h-5" /> Email us
+              </a>
+            </Button>
+            <p className="text-sm text-muted-foreground mt-4">
+              or write to{' '}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary font-medium hover:underline">
+                {CONTACT_EMAIL}
+              </a>
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="border-t border-border py-8">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          © 2026 Budget Bro. Your money, your rules. 🤙
+        <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
+          <span>© 2026 Budget Bro. Your money, your rules. 🤙</span>
+          <a href={`mailto:${CONTACT_EMAIL}`} className="flex items-center gap-1.5 hover:text-primary transition-colors">
+            <Mail className="w-4 h-4" /> {CONTACT_EMAIL}
+          </a>
         </div>
       </footer>
     </div>
