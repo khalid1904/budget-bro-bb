@@ -28,7 +28,8 @@ export default function LandingPage() {
           <Link to="/" className="flex items-center gap-2">
             <img src="/brand-hero.jpg" alt="Budget Bro" className="h-10 rounded-xl" />
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-3">
+            <Button variant="ghost" asChild className="hidden sm:inline-flex"><a href="#contact">Contact</a></Button>
             <Button variant="ghost" asChild><Link to="/login">Login</Link></Button>
             <Button asChild><Link to="/register">Get Started</Link></Button>
           </div>
