@@ -225,7 +225,9 @@ export default function LandingPage() {
                 ))}
               </ul>
               <Button size="lg" className="w-full" asChild>
-                <Link to="/register">Get Started <ArrowRight className="ml-2 w-4 h-4" /></Link>
+                <a href={`mailto:${CONTACT_EMAIL}?subject=Budget%20Bro%20Pro%20Upgrade`}>
+                  <Mail className="mr-2 w-4 h-4" /> Contact for Pro
+                </a>
               </Button>
             </motion.div>
           </div>
