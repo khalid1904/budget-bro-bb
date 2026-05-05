@@ -9,9 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit2, Tag, TrendingUp, TrendingDown, Repeat, Target, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, Edit2, Tag, TrendingUp, TrendingDown, Repeat, Target, CheckCircle, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 function getMonthOptions() {
   const months: string[] = [];
@@ -29,7 +32,8 @@ function formatMonth(m: string) {
 }
 
 export default function BudgetPage() {
-  const { currentMonth, setCurrentMonth, transactions, addTransaction, deleteTransaction, editTransaction, customCategories, addCategory, formatCurrency, savingsGoals, settings, addExpense, expenses } = useBudget();
+  const { currentMonth, setCurrentMonth, transactions, addTransaction, deleteTransaction, editTransaction, customCategories, addCategory, formatCurrency, savingsGoals, settings, addExpense, expenses, profile } = useBudget();
+  const isPro = profile.tier === 'pro';
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -42,6 +46,86 @@ export default function BudgetPage() {
   const [filterCategory, setFilterCategory] = useState('all');
   const [newCategoryDialogOpen, setNewCategoryDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importSourceMonth, setImportSourceMonth] = useState<string>('');
+  const [importMode, setImportMode] = useState<'all' | 'select'>('all');
+  const [selectedImportIds, setSelectedImportIds] = useState<Set<string>>(new Set());
+
+  const availableSourceMonths = useMemo(() => {
+    const set = new Set(transactions.map(t => t.month).filter(m => m !== currentMonth));
+    return Array.from(set).sort().reverse();
+  }, [transactions, currentMonth]);
+
+  const sourceTxns = useMemo(
+    () => transactions.filter(t => t.month === importSourceMonth),
+    [transactions, importSourceMonth]
+  );
+
+  const toggleImportId = (id: string) => {
+    setSelectedImportIds(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
+
+  const toggleGroup = (type: 'incoming' | 'outgoing') => {
+    const ids = sourceTxns.filter(t => t.type === type).map(t => t.id);
+    const allSelected = ids.length > 0 && ids.every(id => selectedImportIds.has(id));
+    setSelectedImportIds(prev => {
+      const n = new Set(prev);
+      ids.forEach(id => allSelected ? n.delete(id) : n.add(id));
+      return n;
+    });
+  };
+
+  const txnsToImport = useMemo(() => {
+    if (importMode === 'all') return sourceTxns;
+    return sourceTxns.filter(t => selectedImportIds.has(t.id));
+  }, [importMode, sourceTxns, selectedImportIds]);
+
+  const openImportDialog = () => {
+    if (availableSourceMonths.length > 0) setImportSourceMonth(availableSourceMonths[0]);
+    setImportMode('all');
+    setSelectedImportIds(new Set());
+    setImportDialogOpen(true);
+  };
+
+  const handleImport = async () => {
+    if (txnsToImport.length === 0) return;
+    const [yStr, mStr] = currentMonth.split('-');
+    const year = +yStr, mon = +mStr;
+    const lastDay = new Date(year, mon, 0).getDate();
+    const activeGoalIds = new Set(savingsGoals.filter(g => g.status === 'active').map(g => g.id));
+    const existing = new Set(
+      transactions
+        .filter(t => t.month === currentMonth)
+        .map(t => `${t.type}|${t.title.toLowerCase()}|${t.amount}|${t.category}`)
+    );
+    let imported = 0, skipped = 0;
+    for (const t of txnsToImport) {
+      const key = `${t.type}|${t.title.toLowerCase()}|${t.amount}|${t.category}`;
+      if (existing.has(key)) { skipped++; continue; }
+      const day = Math.min(new Date(t.date).getDate(), lastDay);
+      const newDate = `${year}-${String(mon).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      await addTransaction({
+        title: t.title,
+        amount: t.amount,
+        category: t.category,
+        date: newDate,
+        type: t.type,
+        month: currentMonth,
+        goal_id: t.goal_id && activeGoalIds.has(t.goal_id) ? t.goal_id : null,
+      });
+      existing.add(key);
+      imported++;
+    }
+    toast({
+      title: `Imported ${imported} ${imported === 1 ? 'entry' : 'entries'}`,
+      description: skipped > 0 ? `${skipped} duplicate${skipped === 1 ? '' : 's'} skipped.` : `From ${formatMonth(importSourceMonth)}`,
+    });
+    setImportDialogOpen(false);
+  };
 
   const monthOptions = getMonthOptions();
 
@@ -162,6 +246,79 @@ export default function BudgetPage() {
                   <div className="space-y-2"><Label>Category Name</Label><Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="e.g. Side Hustle" /></div>
                   <Button onClick={handleAddCategory} className="w-full">Add Category</Button>
                 </div>
+              </DialogContent>
+            </Dialog>
+            {isPro && (
+              <Button variant="outline" onClick={openImportDialog}>
+                <Copy className="w-4 h-4 mr-1" /> Import from Month
+              </Button>
+            )}
+            <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader><DialogTitle className="font-display">Import Budget from Another Month</DialogTitle></DialogHeader>
+                {availableSourceMonths.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    No previous months with budget entries.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Source Month</Label>
+                      <Select value={importSourceMonth} onValueChange={(v) => { setImportSourceMonth(v); setSelectedImportIds(new Set()); }}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {availableSourceMonths.map(m => <SelectItem key={m} value={m}>{formatMonth(m)}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>What to copy</Label>
+                      <RadioGroup value={importMode} onValueChange={(v) => setImportMode(v as 'all' | 'select')}>
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem value="all" id="imp-all" />
+                          <Label htmlFor="imp-all" className="font-normal cursor-pointer">Copy entire month ({sourceTxns.length} entries)</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem value="select" id="imp-sel" />
+                          <Label htmlFor="imp-sel" className="font-normal cursor-pointer">Select specific entries</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                    {importMode === 'select' && (
+                      <ScrollArea className="h-64 border rounded-md p-3">
+                        {(['incoming', 'outgoing'] as const).map(type => {
+                          const items = sourceTxns.filter(t => t.type === type);
+                          if (items.length === 0) return null;
+                          const allSel = items.every(i => selectedImportIds.has(i.id));
+                          return (
+                            <div key={type} className="mb-3 last:mb-0">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-semibold uppercase text-muted-foreground">{type === 'incoming' ? 'Income' : 'Allocations'}</span>
+                                <button type="button" onClick={() => toggleGroup(type)} className="text-xs text-primary hover:underline">
+                                  {allSel ? 'Deselect all' : 'Select all'}
+                                </button>
+                              </div>
+                              {items.map(t => (
+                                <label key={t.id} className="flex items-center gap-2 py-1.5 cursor-pointer">
+                                  <Checkbox checked={selectedImportIds.has(t.id)} onCheckedChange={() => toggleImportId(t.id)} />
+                                  <span className="flex-1 text-sm truncate">{t.title}</span>
+                                  <span className="text-xs text-muted-foreground">{t.category}</span>
+                                  <span className="text-sm font-medium">{formatCurrency(t.amount)}</span>
+                                </label>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </ScrollArea>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                      {txnsToImport.length} {txnsToImport.length === 1 ? 'entry' : 'entries'} will be copied to {formatMonth(currentMonth)}.
+                    </p>
+                    <Button onClick={handleImport} className="w-full" disabled={txnsToImport.length === 0}>
+                      Import {txnsToImport.length > 0 ? `${txnsToImport.length} ` : ''}{txnsToImport.length === 1 ? 'Entry' : 'Entries'}
+                    </Button>
+                  </div>
+                )}
               </DialogContent>
             </Dialog>
             <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
