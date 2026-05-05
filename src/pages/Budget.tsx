@@ -230,9 +230,9 @@ export default function BudgetPage() {
             <TabsTrigger value="incoming" className="gap-1.5"><TrendingUp className="w-4 h-4" /> Income</TabsTrigger>
             <TabsTrigger value="outgoing" className="gap-1.5"><TrendingDown className="w-4 h-4" /> Allocations</TabsTrigger>
           </TabsList>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Filter" /></SelectTrigger>
+              <SelectTrigger className="w-[140px] sm:w-[160px]"><SelectValue placeholder="Filter" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
                 {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -324,7 +324,7 @@ export default function BudgetPage() {
             <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
               <DialogTrigger asChild><Button className="sm:w-auto w-full"><Plus className="w-4 h-4 mr-1" /> Add Entry</Button></DialogTrigger>
               <DialogContent>
-                <DialogHeader><DialogTitle className="font-display">{editId ? 'Edit' : 'Add'} <DialogHeader><DialogTitle className="font-display">{editId ? 'Edit' : 'Add'} {activeTab === 'incoming' ? 'Income' : 'Allocation'} Entry</DialogTitle></DialogHeader></DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle className="font-display">{editId ? 'Edit' : 'Add'} {activeTab === 'incoming' ? 'Income' : 'Allocation'} Entry</DialogTitle></DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-2"><Label>Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Monthly Salary" /></div>
                   <div className="space-y-2"><Label>Amount</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" min="0" step="0.01" /></div>
