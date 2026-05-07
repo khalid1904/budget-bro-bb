@@ -172,7 +172,8 @@ export default function OtherBudgetDetailPage() {
           ) : (
             <AnimatePresence>
               {filteredTxns.map(t => {
-                const Icon = getCategoryIcon(t.category);
+                const cfg = getCategoryIcon(t.category);
+                const Icon = cfg.icon;
                 const goalName = getGoalName(t.goal_id);
                 return (
                   <motion.div key={t.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}>
