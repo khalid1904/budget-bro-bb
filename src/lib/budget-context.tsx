@@ -48,6 +48,24 @@ interface Expense {
   notes?: string;
 }
 
+interface OtherBudget {
+  id: string;
+  name: string;
+  description: string;
+  created_at: string;
+}
+
+interface OtherBudgetTxn {
+  id: string;
+  other_budget_id: string;
+  title: string;
+  amount: number;
+  category: string;
+  type: 'incoming' | 'outgoing';
+  date: string;
+  goal_id?: string | null;
+}
+
 interface BudgetContextType {
   user: User | null;
   session: Session | null;
@@ -82,6 +100,16 @@ interface BudgetContextType {
   addExpense: (e: Omit<Expense, 'id'>) => Promise<void>;
   editExpense: (id: string, e: Partial<Expense>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
+  otherBudgets: OtherBudget[];
+  otherBudgetTxns: OtherBudgetTxn[];
+  refreshOtherBudgets: () => Promise<void>;
+  refreshOtherBudgetTxns: () => Promise<void>;
+  addOtherBudget: (b: { name: string; description: string }) => Promise<OtherBudget | null>;
+  editOtherBudget: (id: string, b: Partial<OtherBudget>) => Promise<void>;
+  deleteOtherBudget: (id: string) => Promise<void>;
+  addOtherBudgetTxn: (t: Omit<OtherBudgetTxn, 'id'>) => Promise<void>;
+  editOtherBudgetTxn: (id: string, t: Partial<OtherBudgetTxn>) => Promise<void>;
+  deleteOtherBudgetTxn: (id: string) => Promise<void>;
 }
 
 const BudgetContext = createContext<BudgetContextType | null>(null);
