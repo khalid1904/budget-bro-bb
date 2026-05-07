@@ -16,6 +16,8 @@ import Profile from "./pages/Profile";
 import Expenses from "./pages/Expenses";
 import YearlyInsights from "./pages/YearlyInsights";
 import SavingsGoals from "./pages/SavingsGoals";
+import OtherBudgets from "./pages/OtherBudgets";
+import OtherBudgetDetail from "./pages/OtherBudgetDetail";
 import AppLayout from "./components/layout/AppLayout";
 import NotFound from "./pages/NotFound";
 
@@ -54,6 +56,8 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/yearly" element={<TierRoute><YearlyInsights /></TierRoute>} />
               <Route path="/budget" element={<Budget />} />
+              <Route path="/other-budgets" element={<TierRoute><OtherBudgets /></TierRoute>} />
+              <Route path="/other-budgets/:id" element={<TierRoute><OtherBudgetDetail /></TierRoute>} />
               <Route path="/recurring" element={<TierRoute><Recurring /></TierRoute>} />
               <Route path="/savings-goals" element={<TierRoute><SavingsGoals /></TierRoute>} />
               <Route path="/analytics" element={<TierRoute><Analytics /></TierRoute>} />

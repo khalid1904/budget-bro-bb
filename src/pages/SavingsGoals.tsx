@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getCategoryType } from '@/lib/types';
 
 export default function SavingsGoalsPage() {
-  const { savingsGoals, transactions, addGoal, editGoal, deleteGoal, formatCurrency } = useBudget();
+  const { savingsGoals, transactions, otherBudgetTxns, addGoal, editGoal, deleteGoal, formatCurrency } = useBudget();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -25,16 +25,20 @@ export default function SavingsGoalsPage() {
   const [description, setDescription] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
-  // Calculate saved amount for each goal dynamically
+  // Calculate saved amount for each goal dynamically (includes Other Budgets contributions)
   const goalProgress = useMemo(() => {
     const map: Record<string, number> = {};
     for (const goal of savingsGoals) {
-      map[goal.id] = transactions
+      const fromMain = transactions
         .filter(t => t.type === 'outgoing' && getCategoryType(t.category) === 'savings' && (t as any).goal_id === goal.id)
         .reduce((sum, t) => sum + t.amount, 0);
+      const fromOther = otherBudgetTxns
+        .filter(t => t.type === 'outgoing' && getCategoryType(t.category) === 'savings' && t.goal_id === goal.id)
+        .reduce((sum, t) => sum + t.amount, 0);
+      map[goal.id] = fromMain + fromOther;
     }
     return map;
-  }, [savingsGoals, transactions]);
+  }, [savingsGoals, transactions, otherBudgetTxns]);
 
   const filteredGoals = useMemo(() =>
     filterStatus === 'all' ? savingsGoals : savingsGoals.filter(g => g.status === filterStatus),

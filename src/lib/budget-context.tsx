@@ -48,6 +48,24 @@ interface Expense {
   notes?: string;
 }
 
+interface OtherBudget {
+  id: string;
+  name: string;
+  description: string;
+  created_at: string;
+}
+
+interface OtherBudgetTxn {
+  id: string;
+  other_budget_id: string;
+  title: string;
+  amount: number;
+  category: string;
+  type: 'incoming' | 'outgoing';
+  date: string;
+  goal_id?: string | null;
+}
+
 interface BudgetContextType {
   user: User | null;
   session: Session | null;
@@ -82,6 +100,16 @@ interface BudgetContextType {
   addExpense: (e: Omit<Expense, 'id'>) => Promise<void>;
   editExpense: (id: string, e: Partial<Expense>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
+  otherBudgets: OtherBudget[];
+  otherBudgetTxns: OtherBudgetTxn[];
+  refreshOtherBudgets: () => Promise<void>;
+  refreshOtherBudgetTxns: () => Promise<void>;
+  addOtherBudget: (b: { name: string; description: string }) => Promise<OtherBudget | null>;
+  editOtherBudget: (id: string, b: Partial<OtherBudget>) => Promise<void>;
+  deleteOtherBudget: (id: string) => Promise<void>;
+  addOtherBudgetTxn: (t: Omit<OtherBudgetTxn, 'id'>) => Promise<void>;
+  editOtherBudgetTxn: (id: string, t: Partial<OtherBudgetTxn>) => Promise<void>;
+  deleteOtherBudgetTxn: (id: string) => Promise<void>;
 }
 
 const BudgetContext = createContext<BudgetContextType | null>(null);
@@ -115,6 +143,8 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [customCategories, setCustomCategories] = useState<{ incoming: string[]; outgoing: string[] }>({ incoming: [], outgoing: [] });
   const [currentMonth, setCurrentMonth] = useState(defaultMonth);
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
+  const [otherBudgets, setOtherBudgets] = useState<OtherBudget[]>([]);
+  const [otherBudgetTxns, setOtherBudgetTxns] = useState<OtherBudgetTxn[]>([]);
   const [isDark, setIsDark] = useState(() => {
     try {
       const stored = localStorage.getItem('darkMode');
@@ -203,6 +233,73 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     if (data) setExpenses((data as any[]).map(e => ({ id: e.id, title: e.title, amount: Number(e.amount), category: e.category, date: e.date, month: e.month, budget_transaction_id: e.budget_transaction_id, notes: e.notes || '' })));
   }, [user]);
 
+  const refreshOtherBudgets = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from('other_budgets' as any).select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+    if (data) setOtherBudgets((data as any[]).map(b => ({ id: b.id, name: b.name, description: b.description || '', created_at: b.created_at })));
+  }, [user]);
+
+  const refreshOtherBudgetTxns = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from('other_budget_transactions' as any).select('*').eq('user_id', user.id).order('date', { ascending: false });
+    if (data) setOtherBudgetTxns((data as any[]).map(t => ({
+      id: t.id, other_budget_id: t.other_budget_id, title: t.title, amount: Number(t.amount),
+      category: t.category, type: t.type, date: t.date, goal_id: t.goal_id ?? null,
+    })));
+  }, [user]);
+
+  const addOtherBudget = useCallback(async (b: { name: string; description: string }) => {
+    if (!user) return null;
+    const { data } = await supabase.from('other_budgets' as any).insert({ user_id: user.id, name: b.name, description: b.description } as any).select().single();
+    if (data) {
+      const d = data as any;
+      const nb: OtherBudget = { id: d.id, name: d.name, description: d.description || '', created_at: d.created_at };
+      setOtherBudgets(prev => [nb, ...prev]);
+      return nb;
+    }
+    return null;
+  }, [user]);
+
+  const editOtherBudget = useCallback(async (id: string, updates: Partial<OtherBudget>) => {
+    if (!user) return;
+    await supabase.from('other_budgets' as any).update(updates as any).eq('id', id).eq('user_id', user.id);
+    setOtherBudgets(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
+  }, [user]);
+
+  const deleteOtherBudget = useCallback(async (id: string) => {
+    if (!user) return;
+    await supabase.from('other_budgets' as any).delete().eq('id', id).eq('user_id', user.id);
+    setOtherBudgets(prev => prev.filter(b => b.id !== id));
+    setOtherBudgetTxns(prev => prev.filter(t => t.other_budget_id !== id));
+  }, [user]);
+
+  const addOtherBudgetTxn = useCallback(async (t: Omit<OtherBudgetTxn, 'id'>) => {
+    if (!user) return;
+    const payload: any = { ...t, user_id: user.id, goal_id: t.goal_id || null };
+    const { data } = await supabase.from('other_budget_transactions' as any).insert(payload).select().single();
+    if (data) {
+      const d = data as any;
+      setOtherBudgetTxns(prev => [{
+        id: d.id, other_budget_id: d.other_budget_id, title: d.title, amount: Number(d.amount),
+        category: d.category, type: d.type, date: d.date, goal_id: d.goal_id ?? null,
+      }, ...prev]);
+    }
+  }, [user]);
+
+  const editOtherBudgetTxn = useCallback(async (id: string, updates: Partial<OtherBudgetTxn>) => {
+    if (!user) return;
+    const payload: any = { ...updates };
+    if ('goal_id' in updates) payload.goal_id = updates.goal_id || null;
+    await supabase.from('other_budget_transactions' as any).update(payload).eq('id', id).eq('user_id', user.id);
+    setOtherBudgetTxns(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+  }, [user]);
+
+  const deleteOtherBudgetTxn = useCallback(async (id: string) => {
+    if (!user) return;
+    await supabase.from('other_budget_transactions' as any).delete().eq('id', id).eq('user_id', user.id);
+    setOtherBudgetTxns(prev => prev.filter(t => t.id !== id));
+  }, [user]);
+
   // Load data when user changes
   useEffect(() => {
     if (user) {
@@ -212,8 +309,10 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       refreshCategories();
       refreshGoals();
       refreshExpenses();
+      refreshOtherBudgets();
+      refreshOtherBudgetTxns();
     }
-  }, [user, refreshProfile, refreshSettings, refreshTransactions, refreshCategories, refreshGoals, refreshExpenses]);
+  }, [user, refreshProfile, refreshSettings, refreshTransactions, refreshCategories, refreshGoals, refreshExpenses, refreshOtherBudgets, refreshOtherBudgetTxns]);
 
   const updateProfile = useCallback(async (p: Partial<Profile>) => {
     if (!user) return;
@@ -338,6 +437,9 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       addCategory, signOut, isDark, toggleDark, formatCurrency,
       savingsGoals, refreshGoals, addGoal, editGoal, deleteGoal,
       expenses, refreshExpenses, addExpense, editExpense, deleteExpense,
+      otherBudgets, otherBudgetTxns, refreshOtherBudgets, refreshOtherBudgetTxns,
+      addOtherBudget, editOtherBudget, deleteOtherBudget,
+      addOtherBudgetTxn, editOtherBudgetTxn, deleteOtherBudgetTxn,
     }}>
       {children}
     </BudgetContext.Provider>
