@@ -1,43 +1,60 @@
-## Plan: Budget Import from Previous Month (Pro feature)
+## Other Budgets — Pro module
 
-Add the ability to copy budget entries from any previous month into the currently selected month on the Budget page. Pro-only.
+A new standalone module for one-off budget pots (e.g. "Bonus", "Wedding Gift", "Tax Refund"). Completely separate from the monthly Budget module — no months, no expense tracking, no dashboard rollup. Pro-only.
 
-### Feature name (UI)
-**"Import from Month"** — button in the Budget page header next to "Add Entry", with a `Copy` icon. Inside the dialog the heading reads **"Import Budget from Another Month"**.
+### Concept
 
-### Scope
-- Applies to **Budget transactions only** (income + allocations). Expenses are NOT copied.
-- Available only when `profile.tier === 'pro'`. Free users do not see the button.
-- User can choose:
-  1. **Copy entire month** — all incoming + outgoing entries from the source month.
-  2. **Select entries** — checkbox list to pick specific transactions to copy.
-- Copied entries are inserted as new transactions for the current month, with:
-  - `month` set to current month
-  - `date` shifted to the same day-of-month in the current month (clamped to last day if needed)
-  - `recurring_rule_id` set to `null` (copies are standalone, not tied to recurrence)
-  - `goal_id` preserved if the linked goal still exists and is active, else `null`
+- Each **Other Budget** is a named pot with its own incomings and allocations.
+- Inside a pot the user sees a mini dashboard: Total Income, Total Allocated (split Spending / Savings / Investment), In-Hand.
+- Allocations under the **Savings** category can optionally link to a Savings Goal — those amounts contribute to goal progress alongside the main Budget module.
 
-### Changes
+### Database (new tables)
 
-**`src/pages/Budget.tsx`** (only file modified)
+**`other_budgets`**
+- `id`, `user_id`, `name` (e.g. "Bonus 2026"), `description`, `created_at`, `updated_at`
+- RLS: owner-only (select / insert / update / delete by `auth.uid() = user_id`).
 
-1. Import `Copy` icon from lucide-react and `Checkbox`, `RadioGroup`, `RadioGroupItem`, `ScrollArea` from ui.
-2. Pull `profile` from `useBudget()` and compute `const isPro = profile.tier === 'pro'`.
-3. Add state:
-   - `importDialogOpen`, `importSourceMonth` (default = previous month), `importMode` ('all' | 'select'), `selectedImportIds: Set<string>`.
-4. Compute `availableSourceMonths` = unique months from `transactions` excluding `currentMonth`, sorted descending.
-5. Compute `sourceTxns` = transactions filtered by `importSourceMonth`, grouped by type for display.
-6. Add **Import from Month** button in the header action row (next to Add Entry), rendered only when `isPro`.
-7. Build dialog:
-   - Source month `Select` populated from `availableSourceMonths` (empty state: "No previous months with budget entries").
-   - `RadioGroup` for mode: "Copy entire month" / "Select specific entries".
-   - When mode is `select`: show a scrollable list grouped by Income / Allocations with checkboxes; include a "Select all" toggle per group.
-   - Footer summary: "X entries will be copied to {currentMonth label}".
-   - Confirm button: disabled if nothing to copy.
-8. On confirm, iterate the chosen transactions and call `addTransaction` for each with the remapped fields described in Scope. Show a toast: `"Imported N entries from {sourceMonth label}"`. Close dialog and reset state.
-9. Skip entries whose identical (title + amount + category + type) already exist in the current month to avoid accidental duplicates; show a sub-toast count of skipped duplicates if any.
+**`other_budget_transactions`**
+- `id`, `user_id`, `other_budget_id` (FK → other_budgets, ON DELETE CASCADE), `title`, `amount`, `category`, `type` ('incoming' | 'outgoing'), `date`, `goal_id` (nullable, no FK — soft link, mirrors the existing transactions table pattern), `created_at`, `updated_at`
+- Index on `(user_id, other_budget_id)`.
+- RLS: owner-only.
+
+No changes to existing tables. Goal progress logic will also sum matching `other_budget_transactions` rows.
+
+### Routing & navigation
+
+- New route `/other-budgets` (list) and `/other-budgets/:id` (detail), both wrapped in `TierRoute` (Pro only).
+- New sidebar item **"Other Budgets"** with a `Wallet` icon, placed right after **Budget**, hidden for Free users (matches existing Pro gating in `AppLayout.tsx`).
+
+### Pages
+
+**`src/pages/OtherBudgets.tsx`** — list view
+- Header: "Other Budgets" + "New Budget" button (opens dialog: name + optional description).
+- Grid of cards, one per pot. Each card shows: name, total income, total allocated, in-hand, transaction count. Click → detail page.
+- Empty state with brief explainer.
+- Edit / delete actions per card (delete cascades transactions).
+
+**`src/pages/OtherBudgetDetail.tsx`** — detail view
+- Back link → list.
+- Summary strip (matches existing dashboard styling): Total Income, Spending, Savings, Investment, Total Allocated, In-Hand.
+- "Add Entry" dialog identical in shape to the main Budget add-entry dialog: type, title, amount, category, date, optional goal link (only when category is Savings, only Pro — already true here).
+- Transactions table grouped by Income / Allocations with edit + delete.
+- Reuses `DEFAULT_INCOMING_CATEGORIES`, `DEFAULT_OUTGOING_CATEGORIES`, `customCategories`, and `getCategoryType` from existing code.
+
+### Context
+
+Extend `BudgetContext` (`src/lib/budget-context.tsx`) with:
+- `otherBudgets: OtherBudget[]`, `otherBudgetTxns: OtherBudgetTxn[]`
+- `refreshOtherBudgets`, `addOtherBudget`, `editOtherBudget`, `deleteOtherBudget`
+- `addOtherBudgetTxn`, `editOtherBudgetTxn`, `deleteOtherBudgetTxn`
+- Loaded alongside other data when `user` is present.
+
+### Savings goal integration
+
+`SavingsGoals` page already computes progress from `transactions` filtered by `goal_id`. Update its progress calculation to also include `otherBudgetTxns` where `goal_id` matches and `category === 'Savings'`. The goal cards continue to render the same way; only the contributing data set grows.
 
 ### Out of scope
-- No DB schema changes — uses existing `addTransaction` flow.
-- No changes to Expenses, Recurring, or other pages.
-- No backfill/undo (user can delete copied entries individually).
+
+- No expense / actuals tracking inside Other Budgets.
+- No recurring rules, no monthly cycles, no inclusion in Dashboard / Analytics / Yearly Insights / Financial Health Score.
+- Free users: route redirects to `/dashboard`, sidebar item hidden.
