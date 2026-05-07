@@ -1,6 +1,6 @@
 import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, Menu, X, Moon, Sun, Repeat, Trophy, Target, Receipt } from 'lucide-react';
+import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, Menu, X, Moon, Sun, Repeat, Trophy, Target, Receipt, Wallet } from 'lucide-react';
 import { useBudget } from '@/lib/budget-context';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 const allNavItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, free: true },
   { to: '/budget', label: 'Budget', icon: ArrowUpDown, free: true },
+  { to: '/other-budgets', label: 'Other Budgets', icon: Wallet, free: false },
   { to: '/expenses', label: 'Expenses', icon: Receipt, free: false },
   { to: '/recurring', label: 'Recurring', icon: Repeat, free: false },
   { to: '/savings-goals', label: 'Savings Goals', icon: Target, free: false },
