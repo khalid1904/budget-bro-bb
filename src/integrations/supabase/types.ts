@@ -98,6 +98,7 @@ export type Database = {
           id: string
           other_budget_id: string
           title: string
+          transfer_ref_id: string | null
           type: string
           updated_at: string
           user_id: string
@@ -111,6 +112,7 @@ export type Database = {
           id?: string
           other_budget_id: string
           title: string
+          transfer_ref_id?: string | null
           type: string
           updated_at?: string
           user_id: string
@@ -124,6 +126,7 @@ export type Database = {
           id?: string
           other_budget_id?: string
           title?: string
+          transfer_ref_id?: string | null
           type?: string
           updated_at?: string
           user_id?: string
@@ -302,6 +305,7 @@ export type Database = {
           month: string
           recurring_rule_id: string | null
           title: string
+          transfer_ref_id: string | null
           type: string
           updated_at: string
           user_id: string
@@ -316,6 +320,7 @@ export type Database = {
           month: string
           recurring_rule_id?: string | null
           title: string
+          transfer_ref_id?: string | null
           type: string
           updated_at?: string
           user_id: string
@@ -330,6 +335,7 @@ export type Database = {
           month?: string
           recurring_rule_id?: string | null
           title?: string
+          transfer_ref_id?: string | null
           type?: string
           updated_at?: string
           user_id?: string
@@ -354,6 +360,7 @@ export type Database = {
       user_settings: {
         Row: {
           created_at: string
+          cross_budget_transfers_enabled: boolean
           dark_mode: boolean
           default_currency: string
           expense_tracking_enabled: boolean
@@ -363,6 +370,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          cross_budget_transfers_enabled?: boolean
           dark_mode?: boolean
           default_currency?: string
           expense_tracking_enabled?: boolean
@@ -372,6 +380,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          cross_budget_transfers_enabled?: boolean
           dark_mode?: boolean
           default_currency?: string
           expense_tracking_enabled?: boolean
