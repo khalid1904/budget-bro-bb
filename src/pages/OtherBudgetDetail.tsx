@@ -190,7 +190,10 @@ export default function OtherBudgetDetailPage() {
                           <Icon className="w-4 h-4 text-muted-foreground" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-foreground truncate">{t.title}</p>
+                          <p className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">
+                            {t.title}
+                            {t.transfer_ref_id && <span className="text-[10px] uppercase tracking-wide bg-primary/10 text-primary rounded px-1.5 py-0.5">↔ Transfer</span>}
+                          </p>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <span>{t.category}</span>
                             <span>·</span>
