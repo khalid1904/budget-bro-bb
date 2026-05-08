@@ -19,7 +19,8 @@ export default function OtherBudgetDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { otherBudgets, otherBudgetTxns, addOtherBudgetTxn, editOtherBudgetTxn, deleteOtherBudgetTxn, customCategories, savingsGoals, formatCurrency } = useBudget();
+  const { otherBudgets, otherBudgetTxns, addOtherBudgetTxn, editOtherBudgetTxn, deleteOtherBudgetTxn, customCategories, savingsGoals, formatCurrency, settings, profile } = useBudget();
+  const isPro = profile.tier === 'pro';
 
   const budget = otherBudgets.find(b => b.id === id);
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
