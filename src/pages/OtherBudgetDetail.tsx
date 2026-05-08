@@ -13,12 +13,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Trash2, Edit2, ArrowLeft, TrendingUp, TrendingDown, Target } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { TransferDialog } from '@/components/TransferDialog';
 
 export default function OtherBudgetDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { otherBudgets, otherBudgetTxns, addOtherBudgetTxn, editOtherBudgetTxn, deleteOtherBudgetTxn, customCategories, savingsGoals, formatCurrency } = useBudget();
+  const { otherBudgets, otherBudgetTxns, addOtherBudgetTxn, editOtherBudgetTxn, deleteOtherBudgetTxn, customCategories, savingsGoals, formatCurrency, settings, profile } = useBudget();
+  const isPro = profile.tier === 'pro';
 
   const budget = otherBudgets.find(b => b.id === id);
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
@@ -125,10 +127,14 @@ export default function OtherBudgetDetailPage() {
             <TabsTrigger value="incoming" className="gap-1.5"><TrendingUp className="w-4 h-4" /> Income</TabsTrigger>
             <TabsTrigger value="outgoing" className="gap-1.5"><TrendingDown className="w-4 h-4" /> Allocations</TabsTrigger>
           </TabsList>
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) reset(); }}>
-            <DialogTrigger asChild>
-              <Button><Plus className="w-4 h-4 mr-1" /> Add Entry</Button>
-            </DialogTrigger>
+          <div className="flex flex-wrap items-center gap-2">
+            {isPro && settings.cross_budget_transfers_enabled && (
+              <TransferDialog defaultDirection="other_to_monthly" fixedOtherBudgetId={budget.id} />
+            )}
+            <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) reset(); }}>
+              <DialogTrigger asChild>
+                <Button><Plus className="w-4 h-4 mr-1" /> Add Entry</Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle className="font-display">{editId ? 'Edit' : 'Add'} {activeTab === 'incoming' ? 'Income' : 'Allocation'} Entry</DialogTitle>
@@ -160,6 +166,7 @@ export default function OtherBudgetDetailPage() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <div className="mt-4 space-y-2">
@@ -183,7 +190,10 @@ export default function OtherBudgetDetailPage() {
                           <Icon className="w-4 h-4 text-muted-foreground" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-foreground truncate">{t.title}</p>
+                          <p className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">
+                            {t.title}
+                            {t.transfer_ref_id && <span className="text-[10px] uppercase tracking-wide bg-primary/10 text-primary rounded px-1.5 py-0.5">↔ Transfer</span>}
+                          </p>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <span>{t.category}</span>
                             <span>·</span>

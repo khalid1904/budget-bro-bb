@@ -1,60 +1,76 @@
-## Other Budgets — Pro module
+## Cross-Budget Transfers
 
-A new standalone module for one-off budget pots (e.g. "Bonus", "Wedding Gift", "Tax Refund"). Completely separate from the monthly Budget module — no months, no expense tracking, no dashboard rollup. Pro-only.
+Pro-only feature letting users move funds between Other Budgets and the monthly Budget in either direction via a one-click "Transfer" action. Each transfer creates two independent linked entries: an outgoing on the source side and an incoming on the destination side. Gated behind a new settings toggle (default OFF).
 
-### Concept
+### Settings
 
-- Each **Other Budget** is a named pot with its own incomings and allocations.
-- Inside a pot the user sees a mini dashboard: Total Income, Total Allocated (split Spending / Savings / Investment), In-Hand.
-- Allocations under the **Savings** category can optionally link to a Savings Goal — those amounts contribute to goal progress alongside the main Budget module.
+- New column `cross_budget_transfers_enabled BOOLEAN NOT NULL DEFAULT false` on `user_settings`.
+- Profile/Settings page: new toggle **"Cross-budget transfers"** under the existing Pro feature toggles (next to expense tracking). Pro-only; hidden/disabled for Free.
+- When OFF, the Transfer UI is hidden everywhere.
 
-### Database (new tables)
+### Database
 
-**`other_budgets`**
-- `id`, `user_id`, `name` (e.g. "Bonus 2026"), `description`, `created_at`, `updated_at`
-- RLS: owner-only (select / insert / update / delete by `auth.uid() = user_id`).
+Add a soft link column to track the paired entry on both sides (no FK; mirrors existing `goal_id` pattern):
 
-**`other_budget_transactions`**
-- `id`, `user_id`, `other_budget_id` (FK → other_budgets, ON DELETE CASCADE), `title`, `amount`, `category`, `type` ('incoming' | 'outgoing'), `date`, `goal_id` (nullable, no FK — soft link, mirrors the existing transactions table pattern), `created_at`, `updated_at`
-- Index on `(user_id, other_budget_id)`.
-- RLS: owner-only.
+- `transactions.transfer_ref_id UUID NULL` — id of the matched `other_budget_transactions` row.
+- `other_budget_transactions.transfer_ref_id UUID NULL` — id of the matched `transactions` row.
 
-No changes to existing tables. Goal progress logic will also sum matching `other_budget_transactions` rows.
+Used only for display ("Transfer from Bonus 2026" badge) and to prevent the deletion cascade from leaving orphans confusing the user. Entries remain independently editable/deletable per the chosen "one-click transfer" mechanic.
 
-### Routing & navigation
+### Transfer flow
 
-- New route `/other-budgets` (list) and `/other-budgets/:id` (detail), both wrapped in `TierRoute` (Pro only).
-- New sidebar item **"Other Budgets"** with a `Wallet` icon, placed right after **Budget**, hidden for Free users (matches existing Pro gating in `AppLayout.tsx`).
+A single **Transfer** button placed in two spots:
 
-### Pages
+1. **Monthly Budget page** (`Budget.tsx`) — header action, next to "Add Entry".
+2. **Other Budget detail page** (`OtherBudgetDetail.tsx`) — header action, next to "Add Entry".
 
-**`src/pages/OtherBudgets.tsx`** — list view
-- Header: "Other Budgets" + "New Budget" button (opens dialog: name + optional description).
-- Grid of cards, one per pot. Each card shows: name, total income, total allocated, in-hand, transaction count. Click → detail page.
-- Empty state with brief explainer.
-- Edit / delete actions per card (delete cascades transactions).
+Opens a dialog with:
 
-**`src/pages/OtherBudgetDetail.tsx`** — detail view
-- Back link → list.
-- Summary strip (matches existing dashboard styling): Total Income, Spending, Savings, Investment, Total Allocated, In-Hand.
-- "Add Entry" dialog identical in shape to the main Budget add-entry dialog: type, title, amount, category, date, optional goal link (only when category is Savings, only Pro — already true here).
-- Transactions table grouped by Income / Allocations with edit + delete.
-- Reuses `DEFAULT_INCOMING_CATEGORIES`, `DEFAULT_OUTGOING_CATEGORIES`, `customCategories`, and `getCategoryType` from existing code.
+- **Direction**: `Other Budget → Monthly` or `Monthly → Other Budget` (radio).
+- **From**: select source pot/month (prefilled from current page).
+- **To**: select destination pot/month.
+- **Amount**, **Title** (default: "Transfer to/from {name}"), **Date**, **Category** (defaults: source side = `Savings` outgoing or user-picked outgoing category; destination side = `Other` incoming).
 
-### Context
+On submit, in one transaction (sequential inserts since no DB transaction across tables — wrap in client-side try/catch with rollback delete on failure):
 
-Extend `BudgetContext` (`src/lib/budget-context.tsx`) with:
-- `otherBudgets: OtherBudget[]`, `otherBudgetTxns: OtherBudgetTxn[]`
-- `refreshOtherBudgets`, `addOtherBudget`, `editOtherBudget`, `deleteOtherBudget`
-- `addOtherBudgetTxn`, `editOtherBudgetTxn`, `deleteOtherBudgetTxn`
-- Loaded alongside other data when `user` is present.
+1. Insert outgoing on source side.
+2. Insert incoming on destination side.
+3. Update both rows' `transfer_ref_id` to point at each other.
 
-### Savings goal integration
+After creation the two entries are independent — editing or deleting one does not affect the other (matches "One-click transfer action" choice). A small "↔ Transfer" badge renders next to either entry in lists when `transfer_ref_id` is set.
 
-`SavingsGoals` page already computes progress from `transactions` filtered by `goal_id`. Update its progress calculation to also include `otherBudgetTxns` where `goal_id` matches and `category === 'Savings'`. The goal cards continue to render the same way; only the contributing data set grows.
+### Context changes
+
+`budget-context.tsx`:
+- Load `transfer_ref_id` on existing fetches (already selecting `*`, so just propagate through types).
+- Add `createTransfer({ direction, fromId, toId, amount, title, date, sourceCategory, destCategory })` helper that does the two inserts + linking.
+
+### Tier & toggle gating
+
+- Transfer button hidden when: tier !== 'pro' OR `cross_budget_transfers_enabled === false`.
+- Backend: no extra RLS needed; existing per-table policies still apply.
+
+### UI placement summary
+
+```text
+Monthly Budget page header:        [+ Add Entry] [↔ Transfer]
+Other Budget detail page header:   [+ Add Entry] [↔ Transfer]
+Settings page (Pro section):       [ ] Cross-budget transfers
+Transaction rows (both sides):     ...title  ↔ Transfer badge
+```
 
 ### Out of scope
 
-- No expense / actuals tracking inside Other Budgets.
-- No recurring rules, no monthly cycles, no inclusion in Dashboard / Analytics / Yearly Insights / Financial Health Score.
-- Free users: route redirects to `/dashboard`, sidebar item hidden.
+- No auto-sync on edit/delete (entries are independent post-creation).
+- No history view of transfers.
+- No effect on Savings Goals progress (transfers do not link to goals).
+- No analytics/dashboard changes.
+
+### Files touched
+
+- Migration: add columns + settings flag.
+- `src/lib/budget-context.tsx` — types + `createTransfer`.
+- `src/pages/Budget.tsx` — Transfer button + dialog, badge in rows.
+- `src/pages/OtherBudgetDetail.tsx` — Transfer button + dialog, badge in rows.
+- `src/pages/Profile.tsx` (or wherever Pro toggles live) — new toggle.
+- `src/integrations/supabase/types.ts` — auto-regenerated.

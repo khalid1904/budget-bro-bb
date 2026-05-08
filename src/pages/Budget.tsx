@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { TransferDialog } from '@/components/TransferDialog';
 
 function getMonthOptions() {
   const months: string[] = [];
@@ -321,6 +322,9 @@ export default function BudgetPage() {
                 )}
               </DialogContent>
             </Dialog>
+            {isPro && settings.cross_budget_transfers_enabled && (
+              <TransferDialog defaultDirection="monthly_to_other" fixedMonth={currentMonth} />
+            )}
             <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
               <DialogTrigger asChild><Button className="sm:w-auto w-full"><Plus className="w-4 h-4 mr-1" /> Add Entry</Button></DialogTrigger>
               <DialogContent>
@@ -382,6 +386,9 @@ export default function BudgetPage() {
                                 <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-0.5">
                                   <Repeat className="w-3 h-3" /> Recurring
                                 </span>
+                              )}
+                              {tx.transfer_ref_id && (
+                                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">↔ Transfer</span>
                               )}
                               {getGoalName(tx.goal_id) && (
                                 <span className="text-xs bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full flex items-center gap-0.5">
