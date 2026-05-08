@@ -303,6 +303,55 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     setOtherBudgetTxns(prev => prev.filter(t => t.id !== id));
   }, [user]);
 
+  const createTransfer = useCallback(async (params: {
+    direction: 'other_to_monthly' | 'monthly_to_other';
+    otherBudgetId: string;
+    month: string;
+    amount: number;
+    title: string;
+    date: string;
+    sourceCategory: string;
+    destCategory: string;
+  }) => {
+    if (!user) return;
+    const { direction, otherBudgetId, month, amount, title, date, sourceCategory, destCategory } = params;
+    if (direction === 'other_to_monthly') {
+      // Source: outgoing on other_budget; Dest: incoming on monthly
+      const { data: src } = await supabase.from('other_budget_transactions' as any).insert({
+        user_id: user.id, other_budget_id: otherBudgetId, title, amount, category: sourceCategory, type: 'outgoing', date,
+      } as any).select().single();
+      if (!src) throw new Error('Failed to create source transfer');
+      const { data: dst, error: dErr } = await supabase.from('transactions').insert({
+        user_id: user.id, title, amount, category: destCategory, type: 'incoming', date, month, transfer_ref_id: (src as any).id,
+      } as any).select().single();
+      if (dErr || !dst) {
+        await supabase.from('other_budget_transactions' as any).delete().eq('id', (src as any).id);
+        throw dErr || new Error('Failed to create destination transfer');
+      }
+      await supabase.from('other_budget_transactions' as any).update({ transfer_ref_id: dst.id } as any).eq('id', (src as any).id);
+      const s: any = src;
+      setOtherBudgetTxns(prev => [{ id: s.id, other_budget_id: s.other_budget_id, title: s.title, amount: Number(s.amount), category: s.category, type: s.type, date: s.date, goal_id: null, transfer_ref_id: dst.id }, ...prev]);
+      setTransactions(prev => [{ ...dst, amount: Number(dst.amount), goal_id: null, transfer_ref_id: (src as any).id } as any, ...prev]);
+    } else {
+      // Source: outgoing on monthly; Dest: incoming on other_budget
+      const { data: src } = await supabase.from('transactions').insert({
+        user_id: user.id, title, amount, category: sourceCategory, type: 'outgoing', date, month,
+      } as any).select().single();
+      if (!src) throw new Error('Failed to create source transfer');
+      const { data: dst, error: dErr } = await supabase.from('other_budget_transactions' as any).insert({
+        user_id: user.id, other_budget_id: otherBudgetId, title, amount, category: destCategory, type: 'incoming', date, transfer_ref_id: (src as any).id,
+      } as any).select().single();
+      if (dErr || !dst) {
+        await supabase.from('transactions').delete().eq('id', (src as any).id);
+        throw dErr || new Error('Failed to create destination transfer');
+      }
+      await supabase.from('transactions').update({ transfer_ref_id: (dst as any).id } as any).eq('id', (src as any).id);
+      const d: any = dst;
+      setTransactions(prev => [{ ...src, amount: Number(src.amount), goal_id: null, transfer_ref_id: d.id } as any, ...prev]);
+      setOtherBudgetTxns(prev => [{ id: d.id, other_budget_id: d.other_budget_id, title: d.title, amount: Number(d.amount), category: d.category, type: d.type, date: d.date, goal_id: null, transfer_ref_id: (src as any).id }, ...prev]);
+    }
+  }, [user]);
+
   // Load data when user changes
   useEffect(() => {
     if (user) {
