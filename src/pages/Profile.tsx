@@ -120,9 +120,9 @@ export default function ProfilePage() {
 
       {isPro && (
         <Card className="shadow-card">
-          <CardHeader><CardTitle className="font-display">Expense Tracking</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
+          <CardHeader><CardTitle className="font-display">Pro Features</CardTitle></CardHeader>
+          <CardContent className="space-y-5">
+            <div className="flex items-center justify-between gap-4">
               <div>
                 <Label>Enable Expense Tracking</Label>
                 <p className="text-sm text-muted-foreground mt-0.5">Record actual spending and compare with your budget allocations</p>
@@ -132,6 +132,19 @@ export default function ProfilePage() {
                 onCheckedChange={async (checked) => {
                   await updateSettings({ expense_tracking_enabled: checked });
                   toast({ title: checked ? 'Expense tracking enabled' : 'Expense tracking disabled' });
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label>Cross-budget Transfers</Label>
+                <p className="text-sm text-muted-foreground mt-0.5">Move funds between Other Budgets and your monthly budget</p>
+              </div>
+              <Switch
+                checked={settings.cross_budget_transfers_enabled}
+                onCheckedChange={async (checked) => {
+                  await updateSettings({ cross_budget_transfers_enabled: checked });
+                  toast({ title: checked ? 'Cross-budget transfers enabled' : 'Cross-budget transfers disabled' });
                 }}
               />
             </div>
