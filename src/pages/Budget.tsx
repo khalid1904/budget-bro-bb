@@ -321,6 +321,9 @@ export default function BudgetPage() {
                 )}
               </DialogContent>
             </Dialog>
+            {isPro && settings.cross_budget_transfers_enabled && (
+              <TransferDialog defaultDirection="monthly_to_other" fixedMonth={currentMonth} />
+            )}
             <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
               <DialogTrigger asChild><Button className="sm:w-auto w-full"><Plus className="w-4 h-4 mr-1" /> Add Entry</Button></DialogTrigger>
               <DialogContent>
