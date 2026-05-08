@@ -113,6 +113,16 @@ interface BudgetContextType {
   addOtherBudgetTxn: (t: Omit<OtherBudgetTxn, 'id'>) => Promise<void>;
   editOtherBudgetTxn: (id: string, t: Partial<OtherBudgetTxn>) => Promise<void>;
   deleteOtherBudgetTxn: (id: string) => Promise<void>;
+  createTransfer: (params: {
+    direction: 'other_to_monthly' | 'monthly_to_other';
+    otherBudgetId: string;
+    month: string;
+    amount: number;
+    title: string;
+    date: string;
+    sourceCategory: string;
+    destCategory: string;
+  }) => Promise<void>;
 }
 
 const BudgetContext = createContext<BudgetContextType | null>(null);
