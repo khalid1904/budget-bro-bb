@@ -189,7 +189,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const { data } = await supabase.from('user_settings').select('*').eq('user_id', user.id).single();
     if (data) {
-      setSettings({ default_currency: data.default_currency, dark_mode: data.dark_mode, expense_tracking_enabled: (data as any).expense_tracking_enabled ?? false });
+      setSettings({ default_currency: data.default_currency, dark_mode: data.dark_mode, expense_tracking_enabled: (data as any).expense_tracking_enabled ?? false, cross_budget_transfers_enabled: (data as any).cross_budget_transfers_enabled ?? false });
       if (!initialSettingsLoaded) {
         const stored = localStorage.getItem('darkMode');
         if (stored === null) {
