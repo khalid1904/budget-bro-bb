@@ -501,7 +501,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       expenses, refreshExpenses, addExpense, editExpense, deleteExpense,
       otherBudgets, otherBudgetTxns, refreshOtherBudgets, refreshOtherBudgetTxns,
       addOtherBudget, editOtherBudget, deleteOtherBudget,
-      addOtherBudgetTxn, editOtherBudgetTxn, deleteOtherBudgetTxn,
+      addOtherBudgetTxn, editOtherBudgetTxn, deleteOtherBudgetTxn, createTransfer,
     }}>
       {children}
     </BudgetContext.Provider>
