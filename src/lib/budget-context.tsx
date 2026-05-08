@@ -66,6 +66,7 @@ interface OtherBudgetTxn {
   type: 'incoming' | 'outgoing';
   date: string;
   goal_id?: string | null;
+  transfer_ref_id?: string | null;
 }
 
 interface BudgetContextType {
