@@ -166,6 +166,7 @@ export default function OtherBudgetDetailPage() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <div className="mt-4 space-y-2">
