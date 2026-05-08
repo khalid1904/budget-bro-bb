@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Trash2, Edit2, ArrowLeft, TrendingUp, TrendingDown, Target } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { TransferDialog } from '@/components/TransferDialog';
 
 export default function OtherBudgetDetailPage() {
   const { id } = useParams<{ id: string }>();
