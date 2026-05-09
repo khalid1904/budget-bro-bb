@@ -1,6 +1,6 @@
 import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, Menu, X, Moon, Sun, Repeat, Trophy, Target, Receipt, Wallet } from 'lucide-react';
+import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, Menu, X, Moon, Sun, Repeat, Trophy, Target, Receipt, Wallet, Settings as SettingsIcon } from 'lucide-react';
 import { useBudget } from '@/lib/budget-context';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ const allNavItems = [
   { to: '/savings-goals', label: 'Savings Goals', icon: Target, free: false },
   { to: '/analytics', label: 'Analytics', icon: BarChart3, free: false },
   { to: '/yearly', label: 'Yearly Insights', icon: Trophy, free: false },
+  { to: '/settings', label: 'Settings', icon: SettingsIcon, free: true },
   { to: '/profile', label: 'Profile', icon: User, free: true },
 ];
 

@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit2, Tag, TrendingUp, TrendingDown, Repeat, Target, CheckCircle, Copy } from 'lucide-react';
+import { Plus, Trash2, Edit2, TrendingUp, TrendingDown, Repeat, Target, CheckCircle, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -33,7 +33,7 @@ function formatMonth(m: string) {
 }
 
 export default function BudgetPage() {
-  const { currentMonth, setCurrentMonth, transactions, addTransaction, deleteTransaction, editTransaction, customCategories, addCategory, formatCurrency, savingsGoals, settings, addExpense, expenses, profile } = useBudget();
+  const { currentMonth, setCurrentMonth, transactions, addTransaction, deleteTransaction, editTransaction, customCategories, formatCurrency, savingsGoals, settings, addExpense, expenses, profile } = useBudget();
   const isPro = profile.tier === 'pro';
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
@@ -45,8 +45,6 @@ export default function BudgetPage() {
   const [date, setDate] = useState('');
   const [goalId, setGoalId] = useState<string>('none');
   const [filterCategory, setFilterCategory] = useState('all');
-  const [newCategoryDialogOpen, setNewCategoryDialogOpen] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importSourceMonth, setImportSourceMonth] = useState<string>('');
   const [importMode, setImportMode] = useState<'all' | 'select'>('all');
@@ -182,13 +180,6 @@ export default function BudgetPage() {
     setDialogOpen(true);
   };
 
-  const handleAddCategory = async () => {
-    if (!newCategoryName.trim()) return;
-    await addCategory(activeTab, newCategoryName.trim());
-    setNewCategoryName('');
-    setNewCategoryDialogOpen(false);
-    toast({ title: 'Category added' });
-  };
 
   const getGoalName = (gId: string | null | undefined) => {
     if (!gId) return null;
@@ -239,16 +230,6 @@ export default function BudgetPage() {
                 {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Dialog open={newCategoryDialogOpen} onOpenChange={setNewCategoryDialogOpen}>
-              <DialogTrigger asChild><Button variant="outline" size="icon"><Tag className="w-4 h-4" /></Button></DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle className="font-display">Add Custom Category</DialogTitle></DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2"><Label>Category Name</Label><Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="e.g. Side Hustle" /></div>
-                  <Button onClick={handleAddCategory} className="w-full">Add Category</Button>
-                </div>
-              </DialogContent>
-            </Dialog>
             {isPro && (
               <Button variant="outline" onClick={openImportDialog}>
                 <Copy className="w-4 h-4 mr-1" /> Import from Month

@@ -1,38 +1,29 @@
 import { useState } from 'react';
-import { useBudget, CURRENCIES } from '@/lib/budget-context';
+import { useBudget } from '@/lib/budget-context';
 import { AVATAR_PRESETS } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function ProfilePage() {
-  const { profile, updateProfile, settings, updateSettings } = useBudget();
-  const isPro = profile.tier === 'pro';
+  const { profile, updateProfile } = useBudget();
   const { toast } = useToast();
   const [username, setUsername] = useState(profile.username);
-  const [email, setEmail] = useState(profile.email);
+  const [email] = useState(profile.email);
   const [bio, setBio] = useState(profile.bio);
   const [selectedAvatar, setSelectedAvatar] = useState(profile.avatar);
   const [savingAvatar, setSavingAvatar] = useState(false);
-  const [currency, setCurrency] = useState(settings.default_currency);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
 
   const handleSaveProfile = async () => {
-    await updateProfile({ username: username.trim(), email: email.trim(), bio: bio.trim() });
+    await updateProfile({ username: username.trim(), bio: bio.trim() });
     toast({ title: 'Profile updated!' });
-  };
-
-  const handleSaveCurrency = async () => {
-    await updateSettings({ default_currency: currency });
-    toast({ title: `Currency set to ${currency}` });
   };
 
   const handleChangePassword = async () => {
@@ -55,8 +46,8 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Profile & Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage your account</p>
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Profile</h1>
+        <p className="text-muted-foreground mt-1">Your personal info & security</p>
       </div>
 
       <Card className="shadow-card">
@@ -83,27 +74,9 @@ export default function ProfilePage() {
         <CardHeader><CardTitle className="font-display">Details</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2"><Label>Username</Label><Input value={username} onChange={e => setUsername(e.target.value)} /></div>
-          <div className="space-y-2"><Label>Email</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} disabled className="opacity-60" /></div>
+          <div className="space-y-2"><Label>Email</Label><Input type="email" value={email} disabled className="opacity-60" /></div>
           <div className="space-y-2"><Label>Bio</Label><Textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="Tell us about yourself..." rows={3} /></div>
           <Button onClick={handleSaveProfile}>Save Changes</Button>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-card">
-        <CardHeader><CardTitle className="font-display">Default Currency</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Currency</Label>
-            <Select value={currency} onValueChange={setCurrency}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {Object.keys(CURRENCIES).map(c => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button onClick={handleSaveCurrency}>Save Currency</Button>
         </CardContent>
       </Card>
 
@@ -117,40 +90,6 @@ export default function ProfilePage() {
           </Button>
         </CardContent>
       </Card>
-
-      {isPro && (
-        <Card className="shadow-card">
-          <CardHeader><CardTitle className="font-display">Pro Features</CardTitle></CardHeader>
-          <CardContent className="space-y-5">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <Label>Enable Expense Tracking</Label>
-                <p className="text-sm text-muted-foreground mt-0.5">Record actual spending and compare with your budget allocations</p>
-              </div>
-              <Switch
-                checked={settings.expense_tracking_enabled}
-                onCheckedChange={async (checked) => {
-                  await updateSettings({ expense_tracking_enabled: checked });
-                  toast({ title: checked ? 'Expense tracking enabled' : 'Expense tracking disabled' });
-                }}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <Label>Cross-budget Transfers</Label>
-                <p className="text-sm text-muted-foreground mt-0.5">Move funds between Other Budgets and your monthly budget</p>
-              </div>
-              <Switch
-                checked={settings.cross_budget_transfers_enabled}
-                onCheckedChange={async (checked) => {
-                  await updateSettings({ cross_budget_transfers_enabled: checked });
-                  toast({ title: checked ? 'Cross-budget transfers enabled' : 'Cross-budget transfers disabled' });
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

@@ -18,6 +18,7 @@ import YearlyInsights from "./pages/YearlyInsights";
 import SavingsGoals from "./pages/SavingsGoals";
 import OtherBudgets from "./pages/OtherBudgets";
 import OtherBudgetDetail from "./pages/OtherBudgetDetail";
+import Settings from "./pages/Settings";
 import AppLayout from "./components/layout/AppLayout";
 import NotFound from "./pages/NotFound";
 
@@ -62,6 +63,7 @@ const App = () => (
               <Route path="/savings-goals" element={<TierRoute><SavingsGoals /></TierRoute>} />
               <Route path="/analytics" element={<TierRoute><Analytics /></TierRoute>} />
               <Route path="/expenses" element={<TierRoute><Expenses /></TierRoute>} />
+              <Route path="/settings" element={<Settings />} />
               <Route path="/profile" element={<Profile />} />
             </Route>
             <Route path="*" element={<NotFound />} />

@@ -1,6 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
+import { setCustomCategoryRegistry } from '@/lib/category-icons';
+
+export interface CustomCategoryRecord {
+  id: string;
+  name: string;
+  type: 'incoming' | 'outgoing';
+  icon: string;
+  color: string;
+}
 
 interface Profile {
   username: string;
@@ -88,7 +97,10 @@ interface BudgetContextType {
   addTransaction: (tx: Omit<Transaction, 'id'>) => Promise<void>;
   editTransaction: (id: string, tx: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
-  addCategory: (type: 'incoming' | 'outgoing', name: string) => Promise<void>;
+  addCategory: (type: 'incoming' | 'outgoing', name: string, icon?: string, color?: string) => Promise<void>;
+  editCategory: (id: string, updates: { name?: string; icon?: string; color?: string }) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
+  customCategoryRecords: { incoming: CustomCategoryRecord[]; outgoing: CustomCategoryRecord[] };
   signOut: () => Promise<void>;
   isDark: boolean;
   toggleDark: () => void;
@@ -154,6 +166,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [customCategories, setCustomCategories] = useState<{ incoming: string[]; outgoing: string[] }>({ incoming: [], outgoing: [] });
+  const [customCategoryRecords, setCustomCategoryRecords] = useState<{ incoming: CustomCategoryRecord[]; outgoing: CustomCategoryRecord[] }>({ incoming: [], outgoing: [] });
   const [currentMonth, setCurrentMonth] = useState(defaultMonth);
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [otherBudgets, setOtherBudgets] = useState<OtherBudget[]>([]);
@@ -220,9 +233,20 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const { data } = await supabase.from('custom_categories').select('*').eq('user_id', user.id);
     if (data) {
-      const incoming = data.filter(c => c.type === 'incoming').map(c => c.name);
-      const outgoing = data.filter(c => c.type === 'outgoing').map(c => c.name);
-      setCustomCategories({ incoming, outgoing });
+      const records: CustomCategoryRecord[] = (data as any[]).map(c => ({
+        id: c.id,
+        name: c.name,
+        type: c.type,
+        icon: c.icon || 'MoreHorizontal',
+        color: c.color || 'hsl(220, 10%, 46%)',
+      }));
+      const incomingRecs = records.filter(c => c.type === 'incoming');
+      const outgoingRecs = records.filter(c => c.type === 'outgoing');
+      setCustomCategories({ incoming: incomingRecs.map(c => c.name), outgoing: outgoingRecs.map(c => c.name) });
+      setCustomCategoryRecords({ incoming: incomingRecs, outgoing: outgoingRecs });
+      const reg: Record<string, { icon: string; color: string }> = {};
+      records.forEach(r => { reg[r.name] = { icon: r.icon, color: r.color }; });
+      setCustomCategoryRegistry(reg);
     }
   }, [user]);
 
@@ -412,11 +436,23 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     setTransactions(prev => prev.filter(t => t.id !== id));
   }, [user]);
 
-  const addCategory = useCallback(async (type: 'incoming' | 'outgoing', name: string) => {
+  const addCategory = useCallback(async (type: 'incoming' | 'outgoing', name: string, icon: string = 'MoreHorizontal', color: string = 'hsl(220, 10%, 46%)') => {
     if (!user) return;
-    await supabase.from('custom_categories').insert({ user_id: user.id, name, type });
-    setCustomCategories(prev => ({ ...prev, [type]: [...prev[type], name] }));
-  }, [user]);
+    await supabase.from('custom_categories').insert({ user_id: user.id, name, type, icon, color } as any);
+    await refreshCategories();
+  }, [user, refreshCategories]);
+
+  const editCategory = useCallback(async (id: string, updates: { name?: string; icon?: string; color?: string }) => {
+    if (!user) return;
+    await supabase.from('custom_categories').update(updates as any).eq('id', id).eq('user_id', user.id);
+    await refreshCategories();
+  }, [user, refreshCategories]);
+
+  const deleteCategory = useCallback(async (id: string) => {
+    if (!user) return;
+    await supabase.from('custom_categories').delete().eq('id', id).eq('user_id', user.id);
+    await refreshCategories();
+  }, [user, refreshCategories]);
 
   const addGoal = useCallback(async (g: { goal_name: string; target_amount: number; target_date: string | null; description: string }) => {
     if (!user) return;
@@ -493,10 +529,10 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <BudgetContext.Provider value={{
-      user, session, loading, profile, settings, transactions, customCategories,
+      user, session, loading, profile, settings, transactions, customCategories, customCategoryRecords,
       currentMonth, setCurrentMonth, refreshProfile, refreshSettings, refreshTransactions, refreshCategories,
       updateProfile, updateSettings, addTransaction, editTransaction, deleteTransaction,
-      addCategory, signOut, isDark, toggleDark, formatCurrency,
+      addCategory, editCategory, deleteCategory, signOut, isDark, toggleDark, formatCurrency,
       savingsGoals, refreshGoals, addGoal, editGoal, deleteGoal,
       expenses, refreshExpenses, addExpense, editExpense, deleteExpense,
       otherBudgets, otherBudgetTxns, refreshOtherBudgets, refreshOtherBudgetTxns,
