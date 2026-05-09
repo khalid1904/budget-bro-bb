@@ -166,6 +166,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [customCategories, setCustomCategories] = useState<{ incoming: string[]; outgoing: string[] }>({ incoming: [], outgoing: [] });
+  const [customCategoryRecords, setCustomCategoryRecords] = useState<{ incoming: CustomCategoryRecord[]; outgoing: CustomCategoryRecord[] }>({ incoming: [], outgoing: [] });
   const [currentMonth, setCurrentMonth] = useState(defaultMonth);
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [otherBudgets, setOtherBudgets] = useState<OtherBudget[]>([]);
