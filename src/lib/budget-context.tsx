@@ -436,11 +436,23 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     setTransactions(prev => prev.filter(t => t.id !== id));
   }, [user]);
 
-  const addCategory = useCallback(async (type: 'incoming' | 'outgoing', name: string) => {
+  const addCategory = useCallback(async (type: 'incoming' | 'outgoing', name: string, icon: string = 'MoreHorizontal', color: string = 'hsl(220, 10%, 46%)') => {
     if (!user) return;
-    await supabase.from('custom_categories').insert({ user_id: user.id, name, type });
-    setCustomCategories(prev => ({ ...prev, [type]: [...prev[type], name] }));
-  }, [user]);
+    await supabase.from('custom_categories').insert({ user_id: user.id, name, type, icon, color } as any);
+    await refreshCategories();
+  }, [user, refreshCategories]);
+
+  const editCategory = useCallback(async (id: string, updates: { name?: string; icon?: string; color?: string }) => {
+    if (!user) return;
+    await supabase.from('custom_categories').update(updates as any).eq('id', id).eq('user_id', user.id);
+    await refreshCategories();
+  }, [user, refreshCategories]);
+
+  const deleteCategory = useCallback(async (id: string) => {
+    if (!user) return;
+    await supabase.from('custom_categories').delete().eq('id', id).eq('user_id', user.id);
+    await refreshCategories();
+  }, [user, refreshCategories]);
 
   const addGoal = useCallback(async (g: { goal_name: string; target_amount: number; target_date: string | null; description: string }) => {
     if (!user) return;
