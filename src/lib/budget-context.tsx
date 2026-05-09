@@ -1,6 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
+import { setCustomCategoryRegistry } from '@/lib/category-icons';
+
+export interface CustomCategoryRecord {
+  id: string;
+  name: string;
+  type: 'incoming' | 'outgoing';
+  icon: string;
+  color: string;
+}
 
 interface Profile {
   username: string;
