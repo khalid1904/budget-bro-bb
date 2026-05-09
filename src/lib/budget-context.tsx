@@ -233,9 +233,20 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const { data } = await supabase.from('custom_categories').select('*').eq('user_id', user.id);
     if (data) {
-      const incoming = data.filter(c => c.type === 'incoming').map(c => c.name);
-      const outgoing = data.filter(c => c.type === 'outgoing').map(c => c.name);
-      setCustomCategories({ incoming, outgoing });
+      const records: CustomCategoryRecord[] = (data as any[]).map(c => ({
+        id: c.id,
+        name: c.name,
+        type: c.type,
+        icon: c.icon || 'MoreHorizontal',
+        color: c.color || 'hsl(220, 10%, 46%)',
+      }));
+      const incomingRecs = records.filter(c => c.type === 'incoming');
+      const outgoingRecs = records.filter(c => c.type === 'outgoing');
+      setCustomCategories({ incoming: incomingRecs.map(c => c.name), outgoing: outgoingRecs.map(c => c.name) });
+      setCustomCategoryRecords({ incoming: incomingRecs, outgoing: outgoingRecs });
+      const reg: Record<string, { icon: string; color: string }> = {};
+      records.forEach(r => { reg[r.name] = { icon: r.icon, color: r.color }; });
+      setCustomCategoryRegistry(reg);
     }
   }, [user]);
 
