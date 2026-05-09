@@ -148,9 +148,7 @@ export default function DashboardPage() {
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="w-full h-full rounded-full border-[12px] border-muted flex items-center justify-center">
-                    <span className="text-muted-foreground text-sm">No data</span>
-                  </div>
+                  <div className="w-full h-full rounded-full border-[12px] border-muted" />
                 )}
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                   <span className="text-xs text-muted-foreground">Total Budget</span>
@@ -326,9 +324,7 @@ export default function DashboardPage() {
                       </PieChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="w-full h-full rounded-full border-[12px] border-muted flex items-center justify-center">
-                      <span className="text-muted-foreground text-sm">No data</span>
-                    </div>
+                    <div className="w-full h-full rounded-full border-[12px] border-muted" />
                   )}
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <span className="text-xs text-muted-foreground">Total Spent</span>
