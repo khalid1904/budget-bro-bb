@@ -529,10 +529,10 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <BudgetContext.Provider value={{
-      user, session, loading, profile, settings, transactions, customCategories,
+      user, session, loading, profile, settings, transactions, customCategories, customCategoryRecords,
       currentMonth, setCurrentMonth, refreshProfile, refreshSettings, refreshTransactions, refreshCategories,
       updateProfile, updateSettings, addTransaction, editTransaction, deleteTransaction,
-      addCategory, signOut, isDark, toggleDark, formatCurrency,
+      addCategory, editCategory, deleteCategory, signOut, isDark, toggleDark, formatCurrency,
       savingsGoals, refreshGoals, addGoal, editGoal, deleteGoal,
       expenses, refreshExpenses, addExpense, editExpense, deleteExpense,
       otherBudgets, otherBudgetTxns, refreshOtherBudgets, refreshOtherBudgetTxns,
