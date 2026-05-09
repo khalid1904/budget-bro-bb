@@ -33,7 +33,7 @@ function formatMonth(m: string) {
 }
 
 export default function BudgetPage() {
-  const { currentMonth, setCurrentMonth, transactions, addTransaction, deleteTransaction, editTransaction, customCategories, addCategory, formatCurrency, savingsGoals, settings, addExpense, expenses, profile } = useBudget();
+  const { currentMonth, setCurrentMonth, transactions, addTransaction, deleteTransaction, editTransaction, customCategories, formatCurrency, savingsGoals, settings, addExpense, expenses, profile } = useBudget();
   const isPro = profile.tier === 'pro';
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
