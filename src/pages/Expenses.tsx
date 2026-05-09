@@ -212,24 +212,28 @@ export default function ExpensesPage() {
                   const IconComp = catIcon.icon;
                   return (
                     <motion.div key={exp.id} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                      className="flex items-center gap-3 py-3 border-b border-border last:border-0">
+                      className="flex items-start gap-3 py-3 border-b border-border last:border-0">
                       <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: catIcon.bg }}>
                         <IconComp className="w-5 h-5" style={{ color: catIcon.fg }} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium text-foreground truncate">{exp.title}</p>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span className="text-xs text-muted-foreground">{exp.category}</span>
-                          {exp.budget_transaction_id && (
-                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">From Budget</span>
-                          )}
-                          {exp.date && <span className="text-xs text-muted-foreground">{new Date(exp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-medium text-foreground break-words min-w-0 flex-1">{exp.title}</p>
+                          <span className="font-display font-semibold whitespace-nowrap text-destructive">{formatCurrency(exp.amount)}</span>
                         </div>
-                      </div>
-                      <span className="font-display font-semibold whitespace-nowrap text-destructive">{formatCurrency(exp.amount)}</span>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(exp.id)}><Edit2 className="w-4 h-4" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={async () => { await deleteExpense(exp.id); toast({ title: 'Expense deleted' }); }}><Trash2 className="w-4 h-4" /></Button>
+                        <div className="flex items-center justify-between gap-2 mt-1">
+                          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                            <span className="text-xs text-muted-foreground">{exp.category}</span>
+                            {exp.budget_transaction_id && (
+                              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">From Budget</span>
+                            )}
+                            {exp.date && <span className="text-xs text-muted-foreground">{new Date(exp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(exp.id)}><Edit2 className="w-4 h-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={async () => { await deleteExpense(exp.id); toast({ title: 'Expense deleted' }); }}><Trash2 className="w-4 h-4" /></Button>
+                          </div>
+                        </div>
                       </div>
                     </motion.div>
                   );
