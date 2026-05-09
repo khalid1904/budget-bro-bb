@@ -63,6 +63,7 @@ const App = () => (
               <Route path="/savings-goals" element={<TierRoute><SavingsGoals /></TierRoute>} />
               <Route path="/analytics" element={<TierRoute><Analytics /></TierRoute>} />
               <Route path="/expenses" element={<TierRoute><Expenses /></TierRoute>} />
+              <Route path="/settings" element={<Settings />} />
               <Route path="/profile" element={<Profile />} />
             </Route>
             <Route path="*" element={<NotFound />} />
