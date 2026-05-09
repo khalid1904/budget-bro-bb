@@ -185,30 +185,37 @@ export default function OtherBudgetDetailPage() {
                 return (
                   <motion.div key={t.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}>
                     <Card className="shadow-card">
-                      <CardContent className="p-3 flex items-center gap-3">
+                      <CardContent className="p-3 flex items-start gap-3">
                         <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
                           <Icon className="w-4 h-4 text-muted-foreground" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">
-                            {t.title}
-                            {t.transfer_ref_id && <span className="text-[10px] uppercase tracking-wide bg-primary/10 text-primary rounded px-1.5 py-0.5">↔ Transfer</span>}
-                          </p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>{t.category}</span>
-                            <span>·</span>
-                            <span>{new Date(t.date).toLocaleDateString()}</span>
-                            {goalName && (<><span>·</span><span className="flex items-center gap-1"><Target className="w-3 h-3" />{goalName}</span></>)}
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-medium text-foreground break-words min-w-0 flex-1">{t.title}</p>
+                            <span className={`text-sm font-semibold whitespace-nowrap ${t.type === 'incoming' ? 'text-success' : 'text-destructive'}`}>{formatCurrency(t.amount)}</span>
                           </div>
-                        </div>
-                        <span className={`text-sm font-semibold ${t.type === 'incoming' ? 'text-success' : 'text-destructive'}`}>{formatCurrency(t.amount)}</span>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(t.id)}>
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={async () => { await deleteOtherBudgetTxn(t.id); toast({ title: 'Entry deleted' }); }}>
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <div className="flex items-center justify-between gap-2 mt-1">
+                            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                              <span className="text-xs text-muted-foreground">{t.category}</span>
+                              <span className="text-xs text-muted-foreground">{new Date(t.date).toLocaleDateString()}</span>
+                              {t.transfer_ref_id && (
+                                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">↔ Transfer</span>
+                              )}
+                              {goalName && (
+                                <span className="text-xs bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <Target className="w-3 h-3" />{goalName}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex gap-1 shrink-0">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(t.id)}>
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={async () => { await deleteOtherBudgetTxn(t.id); toast({ title: 'Entry deleted' }); }}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

@@ -1,76 +1,32 @@
-## Cross-Budget Transfers
+## UI Fixes
 
-Pro-only feature letting users move funds between Other Budgets and the monthly Budget in either direction via a one-click "Transfer" action. Each transfer creates two independent linked entries: an outgoing on the source side and an incoming on the destination side. Gated behind a new settings toggle (default OFF).
+Three issues across Budget, Expenses, Other Budget Detail, and Dashboard.
 
-### Settings
+### 1. Transaction names truncated to "Um…", "Flipk…" on mobile
 
-- New column `cross_budget_transfers_enabled BOOLEAN NOT NULL DEFAULT false` on `user_settings`.
-- Profile/Settings page: new toggle **"Cross-budget transfers"** under the existing Pro feature toggles (next to expense tracking). Pro-only; hidden/disabled for Free.
-- When OFF, the Transfer UI is hidden everywhere.
+**Cause:** Each entry is a single horizontal flex row (icon + title block + amount + edit/delete). On narrow screens the title column gets squeezed because the amount and two action buttons sit on the same line.
 
-### Database
+**Fix:** Restructure each row into a two-line layout on mobile.
+- Top line: icon + title (full width) + amount on the right.
+- Bottom line: meta tags (category, date, From Budget / Recurring / Transfer / Goal) + edit/delete buttons on the right.
+- On `sm:` and up, keep the current single-row look.
 
-Add a soft link column to track the paired entry on both sides (no FK; mirrors existing `goal_id` pattern):
+Files: `src/pages/Budget.tsx` (entries list ~line 376), `src/pages/Expenses.tsx` (~line 214), `src/pages/OtherBudgetDetail.tsx` (~line 186).
 
-- `transactions.transfer_ref_id UUID NULL` — id of the matched `other_budget_transactions` row.
-- `other_budget_transactions.transfer_ref_id UUID NULL` — id of the matched `transactions` row.
+### 2. Savings-goal tag overlapping the amount on Other Budget Detail
 
-Used only for display ("Transfer from Bonus 2026" badge) and to prevent the deletion cascade from leaving orphans confusing the user. Entries remain independently editable/deletable per the chosen "one-click transfer" mechanic.
+**Cause:** Goal name + category + date all sit in one inline row next to a non-shrinking amount; long goal text overflows and overlaps the amount.
 
-### Transfer flow
+**Fix:** Same two-line restructure as #1. The goal pill becomes a wrapped chip on the meta row instead of inline plain text. Use `bg-accent/20 text-accent-foreground rounded-full px-2 py-0.5` matching the Budget page's goal pill style for consistency.
 
-A single **Transfer** button placed in two spots:
+### 3. Dashboard empty donut shows "No data" overlapping "Total Budget ₹0.00"
 
-1. **Monthly Budget page** (`Budget.tsx`) — header action, next to "Add Entry".
-2. **Other Budget detail page** (`OtherBudgetDetail.tsx`) — header action, next to "Add Entry".
+**Cause:** When data is empty, the placeholder ring renders "No data" centered inside it, while an absolutely-positioned overlay also renders "Total Budget" + amount on top — both sit at the same center.
 
-Opens a dialog with:
+**Fix:** When `donutData.length === 0` (and same for `expenseDonutData`), drop the inner "No data" text and just keep the empty ring + the overlay (which already shows ₹0.00). The label stays meaningful and there's no overlap.
 
-- **Direction**: `Other Budget → Monthly` or `Monthly → Other Budget` (radio).
-- **From**: select source pot/month (prefilled from current page).
-- **To**: select destination pot/month.
-- **Amount**, **Title** (default: "Transfer to/from {name}"), **Date**, **Category** (defaults: source side = `Savings` outgoing or user-picked outgoing category; destination side = `Other` incoming).
-
-On submit, in one transaction (sequential inserts since no DB transaction across tables — wrap in client-side try/catch with rollback delete on failure):
-
-1. Insert outgoing on source side.
-2. Insert incoming on destination side.
-3. Update both rows' `transfer_ref_id` to point at each other.
-
-After creation the two entries are independent — editing or deleting one does not affect the other (matches "One-click transfer action" choice). A small "↔ Transfer" badge renders next to either entry in lists when `transfer_ref_id` is set.
-
-### Context changes
-
-`budget-context.tsx`:
-- Load `transfer_ref_id` on existing fetches (already selecting `*`, so just propagate through types).
-- Add `createTransfer({ direction, fromId, toId, amount, title, date, sourceCategory, destCategory })` helper that does the two inserts + linking.
-
-### Tier & toggle gating
-
-- Transfer button hidden when: tier !== 'pro' OR `cross_budget_transfers_enabled === false`.
-- Backend: no extra RLS needed; existing per-table policies still apply.
-
-### UI placement summary
-
-```text
-Monthly Budget page header:        [+ Add Entry] [↔ Transfer]
-Other Budget detail page header:   [+ Add Entry] [↔ Transfer]
-Settings page (Pro section):       [ ] Cross-budget transfers
-Transaction rows (both sides):     ...title  ↔ Transfer badge
-```
+Files: `src/pages/Dashboard.tsx` lines ~150-153 and ~328-331.
 
 ### Out of scope
 
-- No auto-sync on edit/delete (entries are independent post-creation).
-- No history view of transfers.
-- No effect on Savings Goals progress (transfers do not link to goals).
-- No analytics/dashboard changes.
-
-### Files touched
-
-- Migration: add columns + settings flag.
-- `src/lib/budget-context.tsx` — types + `createTransfer`.
-- `src/pages/Budget.tsx` — Transfer button + dialog, badge in rows.
-- `src/pages/OtherBudgetDetail.tsx` — Transfer button + dialog, badge in rows.
-- `src/pages/Profile.tsx` (or wherever Pro toggles live) — new toggle.
-- `src/integrations/supabase/types.ts` — auto-regenerated.
+No data-model, business-logic, or color-token changes. Pure presentational cleanup.
