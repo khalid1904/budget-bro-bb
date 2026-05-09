@@ -239,16 +239,6 @@ export default function BudgetPage() {
                 {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Dialog open={newCategoryDialogOpen} onOpenChange={setNewCategoryDialogOpen}>
-              <DialogTrigger asChild><Button variant="outline" size="icon"><Tag className="w-4 h-4" /></Button></DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle className="font-display">Add Custom Category</DialogTitle></DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2"><Label>Category Name</Label><Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="e.g. Side Hustle" /></div>
-                  <Button onClick={handleAddCategory} className="w-full">Add Category</Button>
-                </div>
-              </DialogContent>
-            </Dialog>
             {isPro && (
               <Button variant="outline" onClick={openImportDialog}>
                 <Copy className="w-4 h-4 mr-1" /> Import from Month
