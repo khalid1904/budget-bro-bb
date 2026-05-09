@@ -16,21 +16,27 @@ export type Database = {
     Tables: {
       custom_categories: {
         Row: {
+          color: string
           created_at: string
+          icon: string
           id: string
           name: string
           type: string
           user_id: string
         }
         Insert: {
+          color?: string
           created_at?: string
+          icon?: string
           id?: string
           name: string
           type: string
           user_id: string
         }
         Update: {
+          color?: string
           created_at?: string
+          icon?: string
           id?: string
           name?: string
           type?: string
