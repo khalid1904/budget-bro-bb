@@ -97,7 +97,10 @@ interface BudgetContextType {
   addTransaction: (tx: Omit<Transaction, 'id'>) => Promise<void>;
   editTransaction: (id: string, tx: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
-  addCategory: (type: 'incoming' | 'outgoing', name: string) => Promise<void>;
+  addCategory: (type: 'incoming' | 'outgoing', name: string, icon?: string, color?: string) => Promise<void>;
+  editCategory: (id: string, updates: { name?: string; icon?: string; color?: string }) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
+  customCategoryRecords: { incoming: CustomCategoryRecord[]; outgoing: CustomCategoryRecord[] };
   signOut: () => Promise<void>;
   isDark: boolean;
   toggleDark: () => void;
