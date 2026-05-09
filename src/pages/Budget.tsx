@@ -180,13 +180,6 @@ export default function BudgetPage() {
     setDialogOpen(true);
   };
 
-  const handleAddCategory = async () => {
-    if (!newCategoryName.trim()) return;
-    await addCategory(activeTab, newCategoryName.trim());
-    setNewCategoryName('');
-    setNewCategoryDialogOpen(false);
-    toast({ title: 'Category added' });
-  };
 
   const getGoalName = (gId: string | null | undefined) => {
     if (!gId) return null;
