@@ -45,8 +45,6 @@ export default function BudgetPage() {
   const [date, setDate] = useState('');
   const [goalId, setGoalId] = useState<string>('none');
   const [filterCategory, setFilterCategory] = useState('all');
-  const [newCategoryDialogOpen, setNewCategoryDialogOpen] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importSourceMonth, setImportSourceMonth] = useState<string>('');
   const [importMode, setImportMode] = useState<'all' | 'select'>('all');
