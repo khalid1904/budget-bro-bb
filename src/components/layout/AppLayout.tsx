@@ -14,6 +14,7 @@ const allNavItems = [
   { to: '/savings-goals', label: 'Savings Goals', icon: Target, free: false },
   { to: '/analytics', label: 'Analytics', icon: BarChart3, free: false },
   { to: '/yearly', label: 'Yearly Insights', icon: Trophy, free: false },
+  { to: '/settings', label: 'Settings', icon: SettingsIcon, free: true },
   { to: '/profile', label: 'Profile', icon: User, free: true },
 ];
 
