@@ -376,7 +376,7 @@ export default function BudgetPage() {
                                   <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">↔ Transfer</span>
                                 )}
                                 {getGoalName(tx.goal_id) && (
-                                  <span className="text-xs bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                                  <span className="text-xs bg-success/15 text-success border border-success/30 px-2 py-0.5 rounded-full flex items-center gap-0.5">
                                     <Target className="w-3 h-3" /> {getGoalName(tx.goal_id)}
                                   </span>
                                 )}
