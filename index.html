@@ -17,6 +17,8 @@
           var stored = localStorage.getItem('darkMode');
           var dark = stored !== null ? JSON.parse(stored) : window.matchMedia('(prefers-color-scheme: dark)').matches;
           if (dark) document.documentElement.classList.add('dark');
+          var theme = localStorage.getItem('bb-theme');
+          if (!dark && theme && theme !== 'default') document.documentElement.setAttribute('data-theme', theme);
         } catch(e){}
       })();
     </script>
