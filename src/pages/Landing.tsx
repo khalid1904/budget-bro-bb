@@ -214,9 +214,10 @@ export default function LandingPage() {
               </div>
               <ul className="space-y-3 mb-8">
                 {[
-                  'Dashboard Overview',
-                  'Budget Management',
-                  'Profile & Settings',
+                  'Everything in Free',
+                  'Expense Tracking',
+                  'Cross-budget Transfers',
+                  'Custom Color Themes',
                   'Yearly Insights',
                   'Recurring Transactions',
                   'Savings Goals',
