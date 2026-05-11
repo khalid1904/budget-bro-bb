@@ -15,6 +15,16 @@ import { Plus, Edit2, Trash2, Lock } from 'lucide-react';
 import { IconPicker } from '@/components/IconPicker';
 import { useToast } from '@/hooks/use-toast';
 
+const THEMES: { id: string; name: string; swatch: [string, string] }[] = [
+  { id: 'default', name: 'Default', swatch: ['hsl(160,84%,39%)', 'hsl(142,71%,45%)'] },
+  { id: 'ironman', name: 'Iron Man', swatch: ['hsl(0,78%,45%)', 'hsl(42,95%,50%)'] },
+  { id: 'captain', name: 'Captain America', swatch: ['hsl(220,80%,35%)', 'hsl(0,75%,48%)'] },
+  { id: 'strange', name: 'Doctor Strange', swatch: ['hsl(350,70%,38%)', 'hsl(38,85%,50%)'] },
+  { id: 'potter', name: 'Harry Potter', swatch: ['hsl(0,70%,35%)', 'hsl(42,80%,50%)'] },
+  { id: 'flash', name: 'The Flash', swatch: ['hsl(0,82%,48%)', 'hsl(50,95%,55%)'] },
+  { id: 'ben10', name: 'Ben 10', swatch: ['hsl(140,75%,35%)', 'hsl(220,15%,18%)'] },
+];
+
 export default function SettingsPage() {
   const { profile, settings, updateSettings, customCategoryRecords, addCategory, editCategory, deleteCategory, isDark, toggleDark, theme, setTheme } = useBudget();
   const isPro = profile.tier === 'pro';
