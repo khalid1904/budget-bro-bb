@@ -1,37 +1,38 @@
-## Issue
+## Goal
 
-The savings goal pill (e.g. "Emergency Fund 2026") uses `bg-accent/20 text-accent-foreground`. In dark mode `--accent-foreground` is `160 80% 10%` (near-black), painted on a faint dark-green `accent/20` tile — dark-on-dark, unreadable (visible in the screenshot).
+Link the two sides of a cross-budget Transfer so deleting either side automatically deletes its counterpart, keeping monthly Budget and Other Budget in sync.
 
-## Fix
+## Background
 
-### 1. Goal pill — switch to a tone that has matching foreground in both themes
+`createTransfer` already writes both sides and stores `transfer_ref_id` on each row pointing to the other:
 
-In `src/pages/Budget.tsx` (line 379) and `src/pages/OtherBudgetDetail.tsx` (line 205):
+- Monthly side lives in `transactions` (`transfer_ref_id` → `other_budget_transactions.id`)
+- Other-budget side lives in `other_budget_transactions` (`transfer_ref_id` → `transactions.id`)
 
-- Replace `bg-accent/20 text-accent-foreground` with `bg-success/15 text-success border border-success/30`.
-- `--success` resolves to a green tone with a light foreground designed for `text-success` usage; matches the goal/savings semantic and stays readable on both light and dim backgrounds.
+But `deleteTransaction` and `deleteOtherBudgetTxn` in `src/lib/budget-context.tsx` delete only the row the user clicked. The counterpart is left orphaned, which is what the user is reporting.
 
-(Alternative considered: `bg-primary/10 text-primary` — already used by Transfer/From-Budget pills, so using success keeps the goal pill visually distinct.)
+## Changes (frontend only — schema already has `transfer_ref_id`)
 
-### 2. Quick theme-compat audit of pills/tags
+`src/lib/budget-context.tsx`
 
-Check and normalize the small pill family so all are readable in both themes:
+1. `**deleteTransaction(id)**`
+  - Look up the transaction in local `transactions` state.
+  - If it has `transfer_ref_id`, also delete the matching row from `other_budget_transactions` (where `id = transfer_ref_id` AND `user_id = user.id`) and remove it from `otherBudgetTxns` state.
+  - Then delete the monthly transaction as today.
+2. `**deleteOtherBudgetTxn(id)**`
+  - Look up the txn in local `otherBudgetTxns` state.
+  - If it has `transfer_ref_id`, also delete the matching row from `transactions` (where `id = transfer_ref_id` AND `user_id = user.id`) and remove it from `transactions` state.
+  - Then delete the other-budget txn as today.
+3. **Defensive fallback** — if local state doesn't have the row (edge case after a refresh race), fall back to deleting any row whose `transfer_ref_id` equals the deleted id, so we never leave an orphan.
 
-- `Recurring.tsx:313` — `bg-secondary text-secondary-foreground` ✓ (token pair, OK)
-- `Budget.tsx:371,376` & `Expenses.tsx:228` & `OtherBudgetDetail.tsx:202` — `bg-primary/10 text-primary` ✓ (OK both modes)
-- `SavingsGoals.tsx:122-124` — status badges already use proper token pairs ✓
-- The only broken one is the goal pill above.
+No UI changes are needed; `Budget.tsx`, `OtherBudgetDetail.tsx`, and any other delete   
+buttons already call these two functions.  
+  
+**Finally**  
+update the hero handling page with missing features
 
-### 3. Broader light/dark sweep
+## Out of scope
 
-Grep for hard-coded color classes that bypass tokens (`text-white`, `bg-black`, `text-gray-*`, `bg-gray-*`, `text-slate-*`, etc.) across `src/pages` and `src/components`. Any hits get swapped to semantic tokens (`text-foreground`, `text-muted-foreground`, `bg-muted`, `bg-card`, etc.).
-
-Also verify the Dashboard empty-donut ring (`border-muted`), the OtherBudgetDetail summary tiles, and the `Edit/Delete` icon buttons render with `text-muted-foreground` / `text-destructive` rather than literal grays.
-
-No business-logic or layout changes — purely token corrections.
-
-## Files Touched
-
-- `src/pages/Budget.tsx` — goal pill className
-- `src/pages/OtherBudgetDetail.tsx` — goal pill className
-- Any additional file flagged by the hard-coded-color sweep (expected: 0–2 small swaps)
+- Editing a transfer side (amount/date/title) is not auto-mirrored to the other side. The user only asked for delete linkage, so leaving edits untouched.
+- No DB migration. We rely on the existing `transfer_ref_id` columns; adding an FK with `ON DELETE CASCADE` would be cleaner long-term but is unnecessary for this fix and would need cross-table FKs which the project currently avoids.  
+  
