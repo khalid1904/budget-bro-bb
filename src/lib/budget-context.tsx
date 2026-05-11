@@ -104,6 +104,8 @@ interface BudgetContextType {
   signOut: () => Promise<void>;
   isDark: boolean;
   toggleDark: () => void;
+  theme: string;
+  setTheme: (name: string) => void;
   formatCurrency: (n: number) => string;
   savingsGoals: SavingsGoal[];
   refreshGoals: () => Promise<void>;
@@ -178,6 +180,9 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       return window.matchMedia('(prefers-color-scheme: dark)').matches;
     } catch { return false; }
   });
+  const [theme, setThemeState] = useState<string>(() => {
+    try { return localStorage.getItem('bb-theme') || 'default'; } catch { return 'default'; }
+  });
 
   // Auth listener
   useEffect(() => {
@@ -194,11 +199,23 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Dark mode
+  // Dark mode + theme
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
     localStorage.setItem('darkMode', JSON.stringify(isDark));
   }, [isDark]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!isDark && theme && theme !== 'default') {
+      root.setAttribute('data-theme', theme);
+    } else {
+      root.removeAttribute('data-theme');
+    }
+    try { localStorage.setItem('bb-theme', theme); } catch {}
+  }, [theme, isDark]);
+
+  const setTheme = useCallback((name: string) => setThemeState(name), []);
 
   const refreshProfile = useCallback(async () => {
     if (!user) return;
@@ -552,7 +569,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       user, session, loading, profile, settings, transactions, customCategories, customCategoryRecords,
       currentMonth, setCurrentMonth, refreshProfile, refreshSettings, refreshTransactions, refreshCategories,
       updateProfile, updateSettings, addTransaction, editTransaction, deleteTransaction,
-      addCategory, editCategory, deleteCategory, signOut, isDark, toggleDark, formatCurrency,
+      addCategory, editCategory, deleteCategory, signOut, isDark, toggleDark, theme, setTheme, formatCurrency,
       savingsGoals, refreshGoals, addGoal, editGoal, deleteGoal,
       expenses, refreshExpenses, addExpense, editExpense, deleteExpense,
       otherBudgets, otherBudgetTxns, refreshOtherBudgets, refreshOtherBudgetTxns,

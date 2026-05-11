@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, BarChart3, Shield, Smartphone, Zap, Target, Download, Check, X, Mail, Repeat, Receipt, Copy, Activity, CalendarRange } from 'lucide-react';
+import { ArrowRight, BarChart3, Shield, Smartphone, Zap, Target, Download, Check, X, Mail, Repeat, Receipt, Copy, Activity, CalendarRange, Palette, Settings as SettingsIcon, Tags, ArrowLeftRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const CONTACT_EMAIL = 'khalidahameds@gmail.com';
@@ -9,6 +9,10 @@ const features = [
   { icon: BarChart3, title: 'Smart Analytics', desc: 'Category breakdowns, trends, and savings ratios at a glance.' },
   { icon: Receipt, title: 'Expense Tracking', desc: 'Log actual spend and compare it against your monthly budget.' },
   { icon: Activity, title: 'Income vs Expense', desc: 'Switch your dashboard between planned budget and real spending.' },
+  { icon: Tags, title: 'Custom Categories', desc: 'Build your own categories with handpicked icons and colors.' },
+  { icon: ArrowLeftRight, title: 'Linked Transfers', desc: 'Move funds between budgets — both sides stay in sync.' },
+  { icon: Palette, title: 'Pro Themes', desc: 'Iron Man, Captain America, Flash & more — style your finances.' },
+  { icon: SettingsIcon, title: 'Settings Hub', desc: 'Currency, themes, features, and categories — all in one place.' },
   { icon: Copy, title: 'Import from Month', desc: 'Copy a previous month\u2019s budget in one click \u2014 all or pick & choose.' },
   { icon: Repeat, title: 'Recurring Entries', desc: 'Set it once. Salary, rent, SIPs auto-populate every month.' },
   { icon: Target, title: 'Savings Goals', desc: 'Set targets, link contributions, and watch progress grow.' },
@@ -210,9 +214,10 @@ export default function LandingPage() {
               </div>
               <ul className="space-y-3 mb-8">
                 {[
-                  'Dashboard Overview',
-                  'Budget Management',
-                  'Profile & Settings',
+                  'Everything in Free',
+                  'Expense Tracking',
+                  'Cross-budget Transfers',
+                  'Custom Color Themes',
                   'Yearly Insights',
                   'Recurring Transactions',
                   'Savings Goals',
