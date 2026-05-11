@@ -333,9 +333,19 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
 
   const deleteOtherBudgetTxn = useCallback(async (id: string) => {
     if (!user) return;
+    const row = otherBudgetTxns.find(t => t.id === id);
+    const linkedId = row?.transfer_ref_id || null;
     await supabase.from('other_budget_transactions' as any).delete().eq('id', id).eq('user_id', user.id);
     setOtherBudgetTxns(prev => prev.filter(t => t.id !== id));
-  }, [user]);
+    if (linkedId) {
+      await supabase.from('transactions').delete().eq('id', linkedId).eq('user_id', user.id);
+      setTransactions(prev => prev.filter(t => t.id !== linkedId));
+    } else {
+      // Defensive: clean up any monthly txn pointing back to this row
+      await supabase.from('transactions').delete().eq('transfer_ref_id', id).eq('user_id', user.id);
+      setTransactions(prev => prev.filter(t => (t as any).transfer_ref_id !== id));
+    }
+  }, [user, otherBudgetTxns]);
 
   const createTransfer = useCallback(async (params: {
     direction: 'other_to_monthly' | 'monthly_to_other';
