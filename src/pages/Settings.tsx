@@ -16,7 +16,7 @@ import { IconPicker } from '@/components/IconPicker';
 import { useToast } from '@/hooks/use-toast';
 
 export default function SettingsPage() {
-  const { profile, settings, updateSettings, customCategoryRecords, addCategory, editCategory, deleteCategory, isDark, toggleDark } = useBudget();
+  const { profile, settings, updateSettings, customCategoryRecords, addCategory, editCategory, deleteCategory, isDark, toggleDark, theme, setTheme } = useBudget();
   const isPro = profile.tier === 'pro';
   const { toast } = useToast();
 
@@ -96,6 +96,42 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground mt-0.5">Toggle the app's color theme</p>
             </div>
             <Switch checked={isDark} onCheckedChange={toggleDark} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Appearance / Themes */}
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="font-display flex items-center gap-2">
+            Color Themes
+            {!isPro && <Lock className="w-4 h-4 text-muted-foreground" />}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!isPro && <p className="text-sm text-muted-foreground">Upgrade to Pro to unlock superhero color themes.</p>}
+          {isDark && <p className="text-sm text-muted-foreground">Themes apply in light mode only. Turn off Dark Mode to preview.</p>}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {THEMES.map(t => {
+              const active = theme === t.id;
+              const disabled = !isPro;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => { setTheme(t.id); toast({ title: `Theme: ${t.name}` }); }}
+                  className={`relative rounded-xl border-2 p-3 text-left transition-all ${active ? 'border-primary shadow-card' : 'border-border hover:border-muted-foreground/40'} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                >
+                  <div className="flex gap-1.5 mb-2">
+                    <span className="w-6 h-6 rounded-full border border-border/50" style={{ background: t.swatch[0] }} />
+                    <span className="w-6 h-6 rounded-full border border-border/50" style={{ background: t.swatch[1] }} />
+                  </div>
+                  <div className="text-sm font-medium text-foreground">{t.name}</div>
+                  {active && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary" />}
+                </button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
