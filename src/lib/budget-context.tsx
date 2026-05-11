@@ -442,9 +442,19 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
 
   const deleteTransaction = useCallback(async (id: string) => {
     if (!user) return;
+    const row = transactions.find(t => t.id === id);
+    const linkedId = (row as any)?.transfer_ref_id || null;
     await supabase.from('transactions').delete().eq('id', id).eq('user_id', user.id);
     setTransactions(prev => prev.filter(t => t.id !== id));
-  }, [user]);
+    if (linkedId) {
+      await supabase.from('other_budget_transactions' as any).delete().eq('id', linkedId).eq('user_id', user.id);
+      setOtherBudgetTxns(prev => prev.filter(t => t.id !== linkedId));
+    } else {
+      // Defensive: clean up any other-budget txn pointing back to this row
+      await supabase.from('other_budget_transactions' as any).delete().eq('transfer_ref_id', id).eq('user_id', user.id);
+      setOtherBudgetTxns(prev => prev.filter(t => (t as any).transfer_ref_id !== id));
+    }
+  }, [user, transactions]);
 
   const addCategory = useCallback(async (type: 'incoming' | 'outgoing', name: string, icon: string = 'MoreHorizontal', color: string = 'hsl(220, 10%, 46%)') => {
     if (!user) return;
