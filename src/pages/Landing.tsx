@@ -222,6 +222,7 @@ export default function LandingPage() {
                   'Yearly Insights',
                   'Recurring Transactions',
                   'Savings Goals',
+                  'Lending Tracker',
                   'Advanced Analytics',
                 ].map(f => (
                   <li key={f} className="flex items-center gap-2 text-sm text-foreground">
