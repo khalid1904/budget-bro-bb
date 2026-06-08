@@ -28,6 +28,7 @@ export default function AppLayout() {
   const navItems = allNavItems.filter(item => {
     if (!item.free && !isPro) return false;
     if (item.to === '/expenses' && !settings.expense_tracking_enabled) return false;
+    if (item.to === '/lending' && !settings.lending_enabled) return false;
     return true;
   });
 
