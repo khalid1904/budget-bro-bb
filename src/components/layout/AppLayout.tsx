@@ -1,6 +1,6 @@
 import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, Menu, X, Moon, Sun, Repeat, Trophy, Target, Receipt, Wallet, Settings as SettingsIcon } from 'lucide-react';
+import { LayoutDashboard, ArrowUpDown, BarChart3, User, LogOut, Menu, X, Moon, Sun, Repeat, Trophy, Target, Receipt, Wallet, Settings as SettingsIcon, HandCoins } from 'lucide-react';
 import { useBudget } from '@/lib/budget-context';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ const allNavItems = [
   { to: '/expenses', label: 'Expenses', icon: Receipt, free: false },
   { to: '/recurring', label: 'Recurring', icon: Repeat, free: false },
   { to: '/savings-goals', label: 'Savings Goals', icon: Target, free: false },
+  { to: '/lending', label: 'Lending', icon: HandCoins, free: false },
   { to: '/analytics', label: 'Analytics', icon: BarChart3, free: false },
   { to: '/yearly', label: 'Yearly Insights', icon: Trophy, free: false },
   { to: '/settings', label: 'Settings', icon: SettingsIcon, free: true },
@@ -27,6 +28,7 @@ export default function AppLayout() {
   const navItems = allNavItems.filter(item => {
     if (!item.free && !isPro) return false;
     if (item.to === '/expenses' && !settings.expense_tracking_enabled) return false;
+    if (item.to === '/lending' && !settings.lending_enabled) return false;
     return true;
   });
 

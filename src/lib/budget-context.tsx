@@ -24,6 +24,24 @@ interface Settings {
   dark_mode: boolean;
   expense_tracking_enabled: boolean;
   cross_budget_transfers_enabled: boolean;
+  lending_enabled: boolean;
+}
+
+export interface Loan {
+  id: string;
+  borrower_name: string;
+  amount: number;
+  lent_date: string;
+  note: string;
+  created_at: string;
+}
+
+export interface LoanRecovery {
+  id: string;
+  loan_id: string;
+  amount: number;
+  recovered_date: string;
+  note: string;
 }
 
 interface Transaction {
@@ -137,6 +155,15 @@ interface BudgetContextType {
     sourceCategory: string;
     destCategory: string;
   }) => Promise<void>;
+  loans: Loan[];
+  loanRecoveries: LoanRecovery[];
+  refreshLoans: () => Promise<void>;
+  refreshLoanRecoveries: () => Promise<void>;
+  addLoan: (l: { borrower_name: string; amount: number; lent_date: string; note: string }) => Promise<void>;
+  editLoan: (id: string, updates: Partial<Loan>) => Promise<void>;
+  deleteLoan: (id: string) => Promise<void>;
+  addRecovery: (r: { loan_id: string; amount: number; recovered_date: string; note: string }) => Promise<void>;
+  deleteRecovery: (id: string) => Promise<void>;
 }
 
 const BudgetContext = createContext<BudgetContextType | null>(null);
@@ -164,7 +191,9 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile>({ username: '', email: '', bio: '', avatar: '🦸', tier: 'free' });
-  const [settings, setSettings] = useState<Settings>({ default_currency: 'INR', dark_mode: false, expense_tracking_enabled: false, cross_budget_transfers_enabled: false });
+  const [settings, setSettings] = useState<Settings>({ default_currency: 'INR', dark_mode: false, expense_tracking_enabled: false, cross_budget_transfers_enabled: false, lending_enabled: false });
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [loanRecoveries, setLoanRecoveries] = useState<LoanRecovery[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [customCategories, setCustomCategories] = useState<{ incoming: string[]; outgoing: string[] }>({ incoming: [], outgoing: [] });
@@ -229,7 +258,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const { data } = await supabase.from('user_settings').select('*').eq('user_id', user.id).single();
     if (data) {
-      setSettings({ default_currency: data.default_currency, dark_mode: data.dark_mode, expense_tracking_enabled: (data as any).expense_tracking_enabled ?? false, cross_budget_transfers_enabled: (data as any).cross_budget_transfers_enabled ?? false });
+      setSettings({ default_currency: data.default_currency, dark_mode: data.dark_mode, expense_tracking_enabled: (data as any).expense_tracking_enabled ?? false, cross_budget_transfers_enabled: (data as any).cross_budget_transfers_enabled ?? false, lending_enabled: (data as any).lending_enabled ?? false });
       if (!initialSettingsLoaded) {
         const stored = localStorage.getItem('darkMode');
         if (stored === null) {
@@ -413,7 +442,58 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  // Load data when user changes
+  const refreshLoans = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from('loans').select('*').eq('user_id', user.id).order('lent_date', { ascending: false });
+    if (data) setLoans((data as any[]).map(l => ({
+      id: l.id, borrower_name: l.borrower_name, amount: Number(l.amount), lent_date: l.lent_date, note: l.note || '', created_at: l.created_at,
+    })));
+  }, [user]);
+
+  const refreshLoanRecoveries = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from('loan_recoveries').select('*').eq('user_id', user.id).order('recovered_date', { ascending: false });
+    if (data) setLoanRecoveries((data as any[]).map(r => ({
+      id: r.id, loan_id: r.loan_id, amount: Number(r.amount), recovered_date: r.recovered_date, note: r.note || '',
+    })));
+  }, [user]);
+
+  const addLoan = useCallback(async (l: { borrower_name: string; amount: number; lent_date: string; note: string }) => {
+    if (!user) return;
+    const { data } = await supabase.from('loans').insert({ user_id: user.id, ...l } as any).select().single();
+    if (data) {
+      const d = data as any;
+      setLoans(prev => [{ id: d.id, borrower_name: d.borrower_name, amount: Number(d.amount), lent_date: d.lent_date, note: d.note || '', created_at: d.created_at }, ...prev]);
+    }
+  }, [user]);
+
+  const editLoan = useCallback(async (id: string, updates: Partial<Loan>) => {
+    if (!user) return;
+    await supabase.from('loans').update(updates as any).eq('id', id).eq('user_id', user.id);
+    setLoans(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l));
+  }, [user]);
+
+  const deleteLoan = useCallback(async (id: string) => {
+    if (!user) return;
+    await supabase.from('loans').delete().eq('id', id).eq('user_id', user.id);
+    setLoans(prev => prev.filter(l => l.id !== id));
+    setLoanRecoveries(prev => prev.filter(r => r.loan_id !== id));
+  }, [user]);
+
+  const addRecovery = useCallback(async (r: { loan_id: string; amount: number; recovered_date: string; note: string }) => {
+    if (!user) return;
+    const { data } = await supabase.from('loan_recoveries').insert({ user_id: user.id, ...r } as any).select().single();
+    if (data) {
+      const d = data as any;
+      setLoanRecoveries(prev => [{ id: d.id, loan_id: d.loan_id, amount: Number(d.amount), recovered_date: d.recovered_date, note: d.note || '' }, ...prev]);
+    }
+  }, [user]);
+
+  const deleteRecovery = useCallback(async (id: string) => {
+    if (!user) return;
+    await supabase.from('loan_recoveries').delete().eq('id', id).eq('user_id', user.id);
+    setLoanRecoveries(prev => prev.filter(r => r.id !== id));
+  }, [user]);
   useEffect(() => {
     if (user) {
       refreshProfile();
@@ -424,8 +504,10 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       refreshExpenses();
       refreshOtherBudgets();
       refreshOtherBudgetTxns();
+      refreshLoans();
+      refreshLoanRecoveries();
     }
-  }, [user, refreshProfile, refreshSettings, refreshTransactions, refreshCategories, refreshGoals, refreshExpenses, refreshOtherBudgets, refreshOtherBudgetTxns]);
+  }, [user, refreshProfile, refreshSettings, refreshTransactions, refreshCategories, refreshGoals, refreshExpenses, refreshOtherBudgets, refreshOtherBudgetTxns, refreshLoans, refreshLoanRecoveries]);
 
   const updateProfile = useCallback(async (p: Partial<Profile>) => {
     if (!user) return;
@@ -575,6 +657,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       otherBudgets, otherBudgetTxns, refreshOtherBudgets, refreshOtherBudgetTxns,
       addOtherBudget, editOtherBudget, deleteOtherBudget,
       addOtherBudgetTxn, editOtherBudgetTxn, deleteOtherBudgetTxn, createTransfer,
+      loans, loanRecoveries, refreshLoans, refreshLoanRecoveries, addLoan, editLoan, deleteLoan, addRecovery, deleteRecovery,
     }}>
       {children}
     </BudgetContext.Provider>

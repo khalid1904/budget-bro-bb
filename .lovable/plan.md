@@ -1,74 +1,76 @@
 ## Goal
 
-1. Add a set of named color themes that apply only in **light mode**, gated to Pro users, selectable from the Settings page.
-2. Update the Landing page features list to reflect what now exists (Settings module, custom categories with icons, transfer linkage, themes).
+Add a **Lending** module so users can record money lent to people and log recoveries (full or partial) over time. Pro-only, toggleable from Settings. Standalone records — no automatic monthly/Other Budget entries are created; the user keeps full control of their budget separately. ( If possible give a catchy name for this module in case of loading based upon this feature's use cases )
 
-## Themes to ship (light-mode only)
+## Behaviour
 
-Each theme overrides the `:root` HSL tokens (`--primary`, `--background`, `--accent`, `--ring`, `--gradient-hero`, `--sidebar-primary`, etc.) without touching the `.dark` block.
+- **Lend entry**: borrower name, amount, date lent, optional note.
+- **Recoveries**: a loan can have many recovery entries (date + amount + optional note). Status auto-derives from totals:
+  - `Outstanding` — recovered < lent
+  - `Partially Recovered` — 0 < recovered < lent
+  - `Fully Recovered` — recovered ≥ lent
+- **Linkage** (within the module): deleting a loan cascades and removes all its recoveries. Deleting a recovery just reduces the recovered total.
+- **No auto budget entries**: lending and recoveries do **not** create transactions in monthly budgets or Other Budgets. (User picked "standalone" for both source and destination.) If they want it reflected in their budget, they add a normal outgoing/incoming themselves.
 
-- **Default** — current emerald/mint Budget Bro look
-- **Iron Man** — crimson red + gold accent, warm cream background
-- **Captain America** — navy blue + red, white background
-- **Doctor Strange** — deep maroon + mystic gold, warm beige
-- **Harry Potter** — Gryffindor scarlet + gold, parchment background
-- **The Flash** — bright scarlet + lightning yellow, off-white
-- **Ben 10** — Omnitrix green + black accent, light grey
+## Settings toggle
 
-All values authored as HSL tokens, semantic — no hardcoded colors in components.
+New Pro switch on Settings → Pro Features: **Enable Lending Tracker**. When off, the sidebar item and `/lending` route are hidden (mirrors Expense Tracking pattern). Stored on `user_settings.lending_enabled`.
 
-## Changes
+## Pages
 
-### 1. CSS (`src/index.css`)
-Add theme classes scoped to non-dark mode:
+### `/lending` (new)
 
-```css
-:root[data-theme="ironman"]:not(.dark) {
-  --primary: 0 75% 45%;
-  --primary-foreground: 45 95% 55%;
-  --background: 35 30% 97%;
-  --accent: 45 95% 50%;
-  --ring: 0 75% 45%;
-  --sidebar-primary: 0 75% 45%;
-  --gradient-hero: linear-gradient(135deg, hsl(0,75%,45%) 0%, hsl(45,95%,55%) 100%);
-  /* ...sidebar/secondary/shadow tweaks */
-}
-/* repeat block for captain, strange, potter, flash, ben10 */
+- Summary cards: Total Lent, Total Recovered, Outstanding, # Active Loans.
+- "New Loan" button → dialog (borrower, amount, date, note).
+- List of loans, each card shows: borrower, lent amount, recovered amount, outstanding, status pill, progress bar, date.
+- Click loan → detail drawer/dialog with recovery history, "Add Recovery" form, edit/delete loan, delete individual recovery.
+- Filters: All / Outstanding / Fully Recovered. Sort by date or outstanding amount.
+
+### Sidebar
+
+Add "Lending" entry between Savings Goals and Analytics, gated by `isPro && settings.lending_enabled`.
+
+## Data model (Supabase)
+
+```sql
+create table public.loans (
+  id uuid pk,
+  user_id uuid → auth.users,
+  borrower_name text not null,
+  amount numeric not null,
+  lent_date date not null,
+  note text,
+  created_at, updated_at
+);
+
+create table public.loan_recoveries (
+  id uuid pk,
+  user_id uuid → auth.users,
+  loan_id uuid → public.loans on delete cascade,
+  amount numeric not null,
+  recovered_date date not null,
+  note text,
+  created_at, updated_at
+);
 ```
 
-`.dark` block stays untouched, so dark mode always renders the default palette regardless of selected theme. Theme is purely cosmetic — no business logic shifts.
+- RLS: owner-only (`auth.uid() = user_id`) on both, with standard `GRANT SELECT/INSERT/UPDATE/DELETE TO authenticated` + `GRANT ALL TO service_role`.
+- `ON DELETE CASCADE` on `loan_recoveries.loan_id` enforces "delete loan → recoveries gone".
+- Indexes on `(user_id, lent_date)` and `(loan_id)`.
+- Add `lending_enabled boolean default false` to `user_settings`.
 
-### 2. Persistence (`src/lib/budget-context.tsx`)
-- Add `theme: string` (default `'default'`) to local state, persisted in `localStorage` under `bb-theme` (matches existing dark-mode pattern — no DB migration).
-- Expose `theme` and `setTheme(name)` from the context.
-- On mount and on change: if `isDark` → remove `data-theme` attribute from `<html>`; else set `document.documentElement.dataset.theme = theme`.
-- Also patch the anti-flicker script in `index.html` to read `bb-theme` and set the attribute before paint (only when not dark).
+## Code changes
 
-### 3. Settings page (`src/pages/Settings.tsx`)
-Add a new **Appearance** card right after Preferences with:
-- Existing Dark Mode switch moves into this card.
-- New "Color Theme" grid of 7 swatches (Default + 6 superheroes). Each swatch shows the theme name and a 2-color preview pill.
-- The whole theme picker is gated like other Pro features:
-  - Free users: swatches disabled with `Lock` icon, helper text "Upgrade to Pro to unlock themes".
-  - Selecting a theme calls `setTheme(name)` and toasts "Theme: <name>".
-- Disabled visual when `isDark` is on, with caption "Themes apply in light mode only."
-
-### 4. Landing page features (`src/pages/Landing.tsx`)
-Refresh the `features` array to reflect current product:
-- Add: **Custom Categories** (icons + colors), **Linked Transfers** (delete one, both go), **Settings Hub** (currency, themes, features), **Pro Themes** (superhero palettes).
-- Keep: Smart Analytics, Expense Tracking, Income vs Expense, Import from Month, Recurring, Savings Goals, Yearly Insights, Excel Export, PWA, Secure, Fast.
-- Reorder so newest/most-used surface in the first row.
-
-Also update the Pro section copy on Landing (if a tier comparison block exists) to list "Custom themes" alongside expense tracking and cross-budget transfers.
+- `src/lib/budget-context.tsx` — add `loans`, `loanRecoveries` state + CRUD (`addLoan`, `editLoan`, `deleteLoan`, `addRecovery`, `deleteRecovery`), include `lending_enabled` in settings type/loader/updater.
+- `src/pages/Lending.tsx` — new page (summary + list + detail dialog).
+- `src/components/layout/AppLayout.tsx` — add nav item (Pro + lending toggle).
+- `src/App.tsx` — add `/lending` route wrapped in `TierRoute`.
+- `src/pages/Settings.tsx` — add Lending toggle in Pro Features card.
+- `src/pages/Landing.tsx` — add "Lending Tracker" to features list.
 
 ## Out of scope
 
-- No DB schema change (theme stored locally, like dark mode).
-- No new theme assets/illustrations — purely token-based recoloring.
-- Dark-mode variants of each theme — explicitly skipped per request.
-
-## Technical notes
-
-- Tokens stay HSL strings so Tailwind's `hsl(var(--token))` keeps working untouched.
-- Switching theme is instant (CSS attribute toggle), no reload.
-- Grandfathered Pro logic in `budget-context` already gates `isPro`; reuse the same flag for theme picker.
+- Auto budget linkage (explicitly skipped per user choice).
+- Reminders/notifications for due loans (future).
+- Interest calculations.
+- Multi-currency per loan — uses default currency from settings.
