@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, BarChart3, Shield, Smartphone, Zap, Target, Download, Check, X, Mail, Repeat, Receipt, Copy, Activity, CalendarRange, Palette, Settings as SettingsIcon, Tags, ArrowLeftRight } from 'lucide-react';
+import { ArrowRight, BarChart3, Shield, Smartphone, Zap, Target, Download, Check, X, Mail, Repeat, Receipt, Copy, Activity, CalendarRange, Palette, Settings as SettingsIcon, Tags, ArrowLeftRight, HandCoins } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const CONTACT_EMAIL = 'khalidahameds@gmail.com';
