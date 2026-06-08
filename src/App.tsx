@@ -62,6 +62,7 @@ const App = () => (
               <Route path="/other-budgets/:id" element={<TierRoute><OtherBudgetDetail /></TierRoute>} />
               <Route path="/recurring" element={<TierRoute><Recurring /></TierRoute>} />
               <Route path="/savings-goals" element={<TierRoute><SavingsGoals /></TierRoute>} />
+              <Route path="/lending" element={<TierRoute><Lending /></TierRoute>} />
               <Route path="/analytics" element={<TierRoute><Analytics /></TierRoute>} />
               <Route path="/expenses" element={<TierRoute><Expenses /></TierRoute>} />
               <Route path="/settings" element={<Settings />} />
