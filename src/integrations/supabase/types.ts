@@ -94,6 +94,80 @@ export type Database = {
           },
         ]
       }
+      loan_recoveries: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          loan_id: string
+          note: string | null
+          recovered_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          loan_id: string
+          note?: string | null
+          recovered_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          loan_id?: string
+          note?: string | null
+          recovered_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_recoveries_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loans: {
+        Row: {
+          amount: number
+          borrower_name: string
+          created_at: string
+          id: string
+          lent_date: string
+          note: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          borrower_name: string
+          created_at?: string
+          id?: string
+          lent_date: string
+          note?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          borrower_name?: string
+          created_at?: string
+          id?: string
+          lent_date?: string
+          note?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       other_budget_transactions: {
         Row: {
           amount: number
@@ -371,6 +445,7 @@ export type Database = {
           default_currency: string
           expense_tracking_enabled: boolean
           id: string
+          lending_enabled: boolean
           updated_at: string
           user_id: string
         }
@@ -381,6 +456,7 @@ export type Database = {
           default_currency?: string
           expense_tracking_enabled?: boolean
           id?: string
+          lending_enabled?: boolean
           updated_at?: string
           user_id: string
         }
@@ -391,6 +467,7 @@ export type Database = {
           default_currency?: string
           expense_tracking_enabled?: boolean
           id?: string
+          lending_enabled?: boolean
           updated_at?: string
           user_id?: string
         }
