@@ -24,6 +24,24 @@ interface Settings {
   dark_mode: boolean;
   expense_tracking_enabled: boolean;
   cross_budget_transfers_enabled: boolean;
+  lending_enabled: boolean;
+}
+
+export interface Loan {
+  id: string;
+  borrower_name: string;
+  amount: number;
+  lent_date: string;
+  note: string;
+  created_at: string;
+}
+
+export interface LoanRecovery {
+  id: string;
+  loan_id: string;
+  amount: number;
+  recovered_date: string;
+  note: string;
 }
 
 interface Transaction {
