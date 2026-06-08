@@ -19,6 +19,7 @@ import SavingsGoals from "./pages/SavingsGoals";
 import OtherBudgets from "./pages/OtherBudgets";
 import OtherBudgetDetail from "./pages/OtherBudgetDetail";
 import Settings from "./pages/Settings";
+import Lending from "./pages/Lending";
 import AppLayout from "./components/layout/AppLayout";
 import NotFound from "./pages/NotFound";
 
