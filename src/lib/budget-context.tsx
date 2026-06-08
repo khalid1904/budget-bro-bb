@@ -504,8 +504,10 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       refreshExpenses();
       refreshOtherBudgets();
       refreshOtherBudgetTxns();
+      refreshLoans();
+      refreshLoanRecoveries();
     }
-  }, [user, refreshProfile, refreshSettings, refreshTransactions, refreshCategories, refreshGoals, refreshExpenses, refreshOtherBudgets, refreshOtherBudgetTxns]);
+  }, [user, refreshProfile, refreshSettings, refreshTransactions, refreshCategories, refreshGoals, refreshExpenses, refreshOtherBudgets, refreshOtherBudgetTxns, refreshLoans, refreshLoanRecoveries]);
 
   const updateProfile = useCallback(async (p: Partial<Profile>) => {
     if (!user) return;
