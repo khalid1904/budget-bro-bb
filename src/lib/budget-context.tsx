@@ -442,7 +442,58 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  // Load data when user changes
+  const refreshLoans = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from('loans').select('*').eq('user_id', user.id).order('lent_date', { ascending: false });
+    if (data) setLoans((data as any[]).map(l => ({
+      id: l.id, borrower_name: l.borrower_name, amount: Number(l.amount), lent_date: l.lent_date, note: l.note || '', created_at: l.created_at,
+    })));
+  }, [user]);
+
+  const refreshLoanRecoveries = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from('loan_recoveries').select('*').eq('user_id', user.id).order('recovered_date', { ascending: false });
+    if (data) setLoanRecoveries((data as any[]).map(r => ({
+      id: r.id, loan_id: r.loan_id, amount: Number(r.amount), recovered_date: r.recovered_date, note: r.note || '',
+    })));
+  }, [user]);
+
+  const addLoan = useCallback(async (l: { borrower_name: string; amount: number; lent_date: string; note: string }) => {
+    if (!user) return;
+    const { data } = await supabase.from('loans').insert({ user_id: user.id, ...l } as any).select().single();
+    if (data) {
+      const d = data as any;
+      setLoans(prev => [{ id: d.id, borrower_name: d.borrower_name, amount: Number(d.amount), lent_date: d.lent_date, note: d.note || '', created_at: d.created_at }, ...prev]);
+    }
+  }, [user]);
+
+  const editLoan = useCallback(async (id: string, updates: Partial<Loan>) => {
+    if (!user) return;
+    await supabase.from('loans').update(updates as any).eq('id', id).eq('user_id', user.id);
+    setLoans(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l));
+  }, [user]);
+
+  const deleteLoan = useCallback(async (id: string) => {
+    if (!user) return;
+    await supabase.from('loans').delete().eq('id', id).eq('user_id', user.id);
+    setLoans(prev => prev.filter(l => l.id !== id));
+    setLoanRecoveries(prev => prev.filter(r => r.loan_id !== id));
+  }, [user]);
+
+  const addRecovery = useCallback(async (r: { loan_id: string; amount: number; recovered_date: string; note: string }) => {
+    if (!user) return;
+    const { data } = await supabase.from('loan_recoveries').insert({ user_id: user.id, ...r } as any).select().single();
+    if (data) {
+      const d = data as any;
+      setLoanRecoveries(prev => [{ id: d.id, loan_id: d.loan_id, amount: Number(d.amount), recovered_date: d.recovered_date, note: d.note || '' }, ...prev]);
+    }
+  }, [user]);
+
+  const deleteRecovery = useCallback(async (id: string) => {
+    if (!user) return;
+    await supabase.from('loan_recoveries').delete().eq('id', id).eq('user_id', user.id);
+    setLoanRecoveries(prev => prev.filter(r => r.id !== id));
+  }, [user]);
   useEffect(() => {
     if (user) {
       refreshProfile();
