@@ -178,6 +178,17 @@ export default function SettingsPage() {
               onCheckedChange={async (checked) => { await updateSettings({ cross_budget_transfers_enabled: checked }); toast({ title: checked ? 'Cross-budget transfers enabled' : 'Cross-budget transfers disabled' }); }}
             />
           </div>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <Label>Lending Tracker</Label>
+              <p className="text-sm text-muted-foreground mt-0.5">Record money you've lent to others and track recoveries</p>
+            </div>
+            <Switch
+              disabled={!isPro}
+              checked={settings.lending_enabled}
+              onCheckedChange={async (checked) => { await updateSettings({ lending_enabled: checked }); toast({ title: checked ? 'Lending tracker enabled' : 'Lending tracker disabled' }); }}
+            />
+          </div>
         </CardContent>
       </Card>
 
