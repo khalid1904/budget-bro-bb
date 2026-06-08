@@ -155,6 +155,15 @@ interface BudgetContextType {
     sourceCategory: string;
     destCategory: string;
   }) => Promise<void>;
+  loans: Loan[];
+  loanRecoveries: LoanRecovery[];
+  refreshLoans: () => Promise<void>;
+  refreshLoanRecoveries: () => Promise<void>;
+  addLoan: (l: { borrower_name: string; amount: number; lent_date: string; note: string }) => Promise<void>;
+  editLoan: (id: string, updates: Partial<Loan>) => Promise<void>;
+  deleteLoan: (id: string) => Promise<void>;
+  addRecovery: (r: { loan_id: string; amount: number; recovered_date: string; note: string }) => Promise<void>;
+  deleteRecovery: (id: string) => Promise<void>;
 }
 
 const BudgetContext = createContext<BudgetContextType | null>(null);
