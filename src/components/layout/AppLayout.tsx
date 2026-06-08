@@ -12,6 +12,7 @@ const allNavItems = [
   { to: '/expenses', label: 'Expenses', icon: Receipt, free: false },
   { to: '/recurring', label: 'Recurring', icon: Repeat, free: false },
   { to: '/savings-goals', label: 'Savings Goals', icon: Target, free: false },
+  { to: '/lending', label: 'Lending', icon: HandCoins, free: false },
   { to: '/analytics', label: 'Analytics', icon: BarChart3, free: false },
   { to: '/yearly', label: 'Yearly Insights', icon: Trophy, free: false },
   { to: '/settings', label: 'Settings', icon: SettingsIcon, free: true },
