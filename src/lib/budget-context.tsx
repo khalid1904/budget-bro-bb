@@ -400,6 +400,11 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       await supabase.from('transactions').delete().eq('transfer_ref_id', id).eq('user_id', user.id);
       setTransactions(prev => prev.filter(t => (t as any).transfer_ref_id !== id));
     }
+    // Lending linkage: remove loan/recovery that references this budget entry
+    await supabase.from('loans').delete().eq('linked_other_budget_txn_id', id).eq('user_id', user.id);
+    await supabase.from('loan_recoveries').delete().eq('linked_other_budget_txn_id', id).eq('user_id', user.id);
+    setLoans(prev => prev.filter(l => l.linked_other_budget_txn_id !== id));
+    setLoanRecoveries(prev => prev.filter(r => r.linked_other_budget_txn_id !== id));
   }, [user, otherBudgetTxns]);
 
   const createTransfer = useCallback(async (params: {
