@@ -168,10 +168,10 @@ interface BudgetContextType {
   loanRecoveries: LoanRecovery[];
   refreshLoans: () => Promise<void>;
   refreshLoanRecoveries: () => Promise<void>;
-  addLoan: (l: { borrower_name: string; amount: number; lent_date: string; note: string }) => Promise<void>;
-  editLoan: (id: string, updates: Partial<Loan>) => Promise<void>;
+  addLoan: (l: { borrower_name: string; amount: number; lent_date: string; note: string }, link?: LendingLink) => Promise<void>;
+  editLoan: (id: string, updates: Partial<Loan>, link?: LendingLink | undefined) => Promise<void>;
   deleteLoan: (id: string) => Promise<void>;
-  addRecovery: (r: { loan_id: string; amount: number; recovered_date: string; note: string }) => Promise<void>;
+  addRecovery: (r: { loan_id: string; amount: number; recovered_date: string; note: string }, link?: LendingLink) => Promise<void>;
   deleteRecovery: (id: string) => Promise<void>;
 }
 
