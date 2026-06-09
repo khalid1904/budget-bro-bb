@@ -34,6 +34,8 @@ export interface Loan {
   lent_date: string;
   note: string;
   created_at: string;
+  linked_transaction_id?: string | null;
+  linked_other_budget_txn_id?: string | null;
 }
 
 export interface LoanRecovery {
@@ -42,7 +44,14 @@ export interface LoanRecovery {
   amount: number;
   recovered_date: string;
   note: string;
+  linked_transaction_id?: string | null;
+  linked_other_budget_txn_id?: string | null;
 }
+
+export type LendingLink =
+  | { kind: 'monthly'; month: string }
+  | { kind: 'other'; other_budget_id: string }
+  | null;
 
 interface Transaction {
   id: string;
