@@ -34,6 +34,8 @@ export interface Loan {
   lent_date: string;
   note: string;
   created_at: string;
+  linked_transaction_id?: string | null;
+  linked_other_budget_txn_id?: string | null;
 }
 
 export interface LoanRecovery {
@@ -42,7 +44,14 @@ export interface LoanRecovery {
   amount: number;
   recovered_date: string;
   note: string;
+  linked_transaction_id?: string | null;
+  linked_other_budget_txn_id?: string | null;
 }
+
+export type LendingLink =
+  | { kind: 'monthly'; month: string }
+  | { kind: 'other'; other_budget_id: string }
+  | null;
 
 interface Transaction {
   id: string;
@@ -159,10 +168,10 @@ interface BudgetContextType {
   loanRecoveries: LoanRecovery[];
   refreshLoans: () => Promise<void>;
   refreshLoanRecoveries: () => Promise<void>;
-  addLoan: (l: { borrower_name: string; amount: number; lent_date: string; note: string }) => Promise<void>;
-  editLoan: (id: string, updates: Partial<Loan>) => Promise<void>;
+  addLoan: (l: { borrower_name: string; amount: number; lent_date: string; note: string }, link?: LendingLink) => Promise<void>;
+  editLoan: (id: string, updates: Partial<Loan>, link?: LendingLink | undefined) => Promise<void>;
   deleteLoan: (id: string) => Promise<void>;
-  addRecovery: (r: { loan_id: string; amount: number; recovered_date: string; note: string }) => Promise<void>;
+  addRecovery: (r: { loan_id: string; amount: number; recovered_date: string; note: string }, link?: LendingLink) => Promise<void>;
   deleteRecovery: (id: string) => Promise<void>;
 }
 
@@ -391,6 +400,11 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       await supabase.from('transactions').delete().eq('transfer_ref_id', id).eq('user_id', user.id);
       setTransactions(prev => prev.filter(t => (t as any).transfer_ref_id !== id));
     }
+    // Lending linkage: remove loan/recovery that references this budget entry
+    await supabase.from('loans').delete().eq('linked_other_budget_txn_id', id).eq('user_id', user.id);
+    await supabase.from('loan_recoveries').delete().eq('linked_other_budget_txn_id', id).eq('user_id', user.id);
+    setLoans(prev => prev.filter(l => l.linked_other_budget_txn_id !== id));
+    setLoanRecoveries(prev => prev.filter(r => r.linked_other_budget_txn_id !== id));
   }, [user, otherBudgetTxns]);
 
   const createTransfer = useCallback(async (params: {
@@ -447,6 +461,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     const { data } = await supabase.from('loans').select('*').eq('user_id', user.id).order('lent_date', { ascending: false });
     if (data) setLoans((data as any[]).map(l => ({
       id: l.id, borrower_name: l.borrower_name, amount: Number(l.amount), lent_date: l.lent_date, note: l.note || '', created_at: l.created_at,
+      linked_transaction_id: l.linked_transaction_id ?? null, linked_other_budget_txn_id: l.linked_other_budget_txn_id ?? null,
     })));
   }, [user]);
 
@@ -455,45 +470,147 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     const { data } = await supabase.from('loan_recoveries').select('*').eq('user_id', user.id).order('recovered_date', { ascending: false });
     if (data) setLoanRecoveries((data as any[]).map(r => ({
       id: r.id, loan_id: r.loan_id, amount: Number(r.amount), recovered_date: r.recovered_date, note: r.note || '',
+      linked_transaction_id: r.linked_transaction_id ?? null, linked_other_budget_txn_id: r.linked_other_budget_txn_id ?? null,
     })));
   }, [user]);
 
-  const addLoan = useCallback(async (l: { borrower_name: string; amount: number; lent_date: string; note: string }) => {
+  // Helpers to create / delete budget entries linked to lending records
+  const ensureLendingCategory = useCallback(async (kind: 'lending' | 'recovery'): Promise<string> => {
+    const name = kind === 'lending' ? 'Lending' : 'Loan Recovery';
+    const type: 'incoming' | 'outgoing' = kind === 'lending' ? 'outgoing' : 'incoming';
+    if (!user) return name;
+    const existing = (kind === 'lending' ? customCategoryRecords.outgoing : customCategoryRecords.incoming).find(c => c.name === name);
+    if (existing) return name;
+    const icon = kind === 'lending' ? 'HandCoins' : 'TrendingUp';
+    const color = 'hsl(160, 84%, 39%)';
+    await supabase.from('custom_categories').insert({ user_id: user.id, name, type, icon, color } as any);
+    await refreshCategories();
+    return name;
+  }, [user, customCategoryRecords, refreshCategories]);
+
+  const createLinkedEntry = useCallback(async (params: {
+    kind: 'lending' | 'recovery';
+    link: LendingLink;
+    title: string;
+    amount: number;
+    date: string;
+  }): Promise<{ linked_transaction_id: string | null; linked_other_budget_txn_id: string | null }> => {
+    if (!user || !params.link) return { linked_transaction_id: null, linked_other_budget_txn_id: null };
+    const category = await ensureLendingCategory(params.kind);
+    const type = params.kind === 'lending' ? 'outgoing' : 'incoming';
+    if (params.link.kind === 'monthly') {
+      const { data } = await supabase.from('transactions').insert({
+        user_id: user.id, title: params.title, amount: params.amount, category, type, date: params.date, month: params.link.month,
+      } as any).select().single();
+      if (data) {
+        const d = data as any;
+        setTransactions(prev => [{ ...d, amount: Number(d.amount), goal_id: null, transfer_ref_id: null }, ...prev]);
+        return { linked_transaction_id: d.id, linked_other_budget_txn_id: null };
+      }
+    } else {
+      const { data } = await supabase.from('other_budget_transactions' as any).insert({
+        user_id: user.id, other_budget_id: params.link.other_budget_id, title: params.title, amount: params.amount, category, type, date: params.date,
+      } as any).select().single();
+      if (data) {
+        const d = data as any;
+        setOtherBudgetTxns(prev => [{
+          id: d.id, other_budget_id: d.other_budget_id, title: d.title, amount: Number(d.amount),
+          category: d.category, type: d.type, date: d.date, goal_id: null, transfer_ref_id: null,
+        }, ...prev]);
+        return { linked_transaction_id: null, linked_other_budget_txn_id: d.id };
+      }
+    }
+    return { linked_transaction_id: null, linked_other_budget_txn_id: null };
+  }, [user, ensureLendingCategory]);
+
+  const deleteLinkedEntry = useCallback(async (txnId: string | null | undefined, otherId: string | null | undefined) => {
     if (!user) return;
-    const { data } = await supabase.from('loans').insert({ user_id: user.id, ...l } as any).select().single();
-    if (data) {
-      const d = data as any;
-      setLoans(prev => [{ id: d.id, borrower_name: d.borrower_name, amount: Number(d.amount), lent_date: d.lent_date, note: d.note || '', created_at: d.created_at }, ...prev]);
+    if (txnId) {
+      await supabase.from('transactions').delete().eq('id', txnId).eq('user_id', user.id);
+      setTransactions(prev => prev.filter(t => t.id !== txnId));
+    }
+    if (otherId) {
+      await supabase.from('other_budget_transactions' as any).delete().eq('id', otherId).eq('user_id', user.id);
+      setOtherBudgetTxns(prev => prev.filter(t => t.id !== otherId));
     }
   }, [user]);
 
-  const editLoan = useCallback(async (id: string, updates: Partial<Loan>) => {
+  const addLoan = useCallback(async (l: { borrower_name: string; amount: number; lent_date: string; note: string }, link?: LendingLink) => {
     if (!user) return;
-    await supabase.from('loans').update(updates as any).eq('id', id).eq('user_id', user.id);
-    setLoans(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l));
-  }, [user]);
+    const linked = link ? await createLinkedEntry({ kind: 'lending', link, title: `Lent to ${l.borrower_name}`, amount: l.amount, date: l.lent_date }) : { linked_transaction_id: null, linked_other_budget_txn_id: null };
+    const { data } = await supabase.from('loans').insert({ user_id: user.id, ...l, ...linked } as any).select().single();
+    if (data) {
+      const d = data as any;
+      setLoans(prev => [{ id: d.id, borrower_name: d.borrower_name, amount: Number(d.amount), lent_date: d.lent_date, note: d.note || '', created_at: d.created_at, linked_transaction_id: d.linked_transaction_id ?? null, linked_other_budget_txn_id: d.linked_other_budget_txn_id ?? null }, ...prev]);
+    }
+  }, [user, createLinkedEntry]);
+
+  const editLoan = useCallback(async (id: string, updates: Partial<Loan>, link?: LendingLink | undefined) => {
+    if (!user) return;
+    const current = loans.find(l => l.id === id);
+    if (!current) return;
+    const merged = { ...current, ...updates };
+    const patch: any = { ...updates };
+
+    if (link !== undefined) {
+      // Destination changed — wipe old and create new (if any)
+      await deleteLinkedEntry(current.linked_transaction_id, current.linked_other_budget_txn_id);
+      const linked = link ? await createLinkedEntry({ kind: 'lending', link, title: `Lent to ${merged.borrower_name}`, amount: merged.amount, date: merged.lent_date }) : { linked_transaction_id: null, linked_other_budget_txn_id: null };
+      patch.linked_transaction_id = linked.linked_transaction_id;
+      patch.linked_other_budget_txn_id = linked.linked_other_budget_txn_id;
+    } else {
+      // Mirror amount/date/borrower changes to existing linked entry
+      const mirrorPatch: any = {};
+      if (updates.amount !== undefined) mirrorPatch.amount = updates.amount;
+      if (updates.lent_date !== undefined) mirrorPatch.date = updates.lent_date;
+      if (updates.borrower_name !== undefined) mirrorPatch.title = `Lent to ${updates.borrower_name}`;
+      if (Object.keys(mirrorPatch).length > 0) {
+        if (current.linked_transaction_id) {
+          await supabase.from('transactions').update(mirrorPatch).eq('id', current.linked_transaction_id).eq('user_id', user.id);
+          setTransactions(prev => prev.map(t => t.id === current.linked_transaction_id ? { ...t, ...mirrorPatch } : t));
+        }
+        if (current.linked_other_budget_txn_id) {
+          await supabase.from('other_budget_transactions' as any).update(mirrorPatch).eq('id', current.linked_other_budget_txn_id).eq('user_id', user.id);
+          setOtherBudgetTxns(prev => prev.map(t => t.id === current.linked_other_budget_txn_id ? { ...t, ...mirrorPatch } : t));
+        }
+      }
+    }
+
+    await supabase.from('loans').update(patch).eq('id', id).eq('user_id', user.id);
+    setLoans(prev => prev.map(l => l.id === id ? { ...l, ...patch } : l));
+  }, [user, loans, createLinkedEntry, deleteLinkedEntry]);
 
   const deleteLoan = useCallback(async (id: string) => {
     if (!user) return;
+    const loan = loans.find(l => l.id === id);
+    const recs = loanRecoveries.filter(r => r.loan_id === id);
+    // Delete linked budget entries for the loan + all recoveries
+    if (loan) await deleteLinkedEntry(loan.linked_transaction_id, loan.linked_other_budget_txn_id);
+    for (const r of recs) await deleteLinkedEntry(r.linked_transaction_id, r.linked_other_budget_txn_id);
     await supabase.from('loans').delete().eq('id', id).eq('user_id', user.id);
     setLoans(prev => prev.filter(l => l.id !== id));
     setLoanRecoveries(prev => prev.filter(r => r.loan_id !== id));
-  }, [user]);
+  }, [user, loans, loanRecoveries, deleteLinkedEntry]);
 
-  const addRecovery = useCallback(async (r: { loan_id: string; amount: number; recovered_date: string; note: string }) => {
+  const addRecovery = useCallback(async (r: { loan_id: string; amount: number; recovered_date: string; note: string }, link?: LendingLink) => {
     if (!user) return;
-    const { data } = await supabase.from('loan_recoveries').insert({ user_id: user.id, ...r } as any).select().single();
+    const loan = loans.find(l => l.id === r.loan_id);
+    const borrowerName = loan?.borrower_name || 'borrower';
+    const linked = link ? await createLinkedEntry({ kind: 'recovery', link, title: `Recovery from ${borrowerName}`, amount: r.amount, date: r.recovered_date }) : { linked_transaction_id: null, linked_other_budget_txn_id: null };
+    const { data } = await supabase.from('loan_recoveries').insert({ user_id: user.id, ...r, ...linked } as any).select().single();
     if (data) {
       const d = data as any;
-      setLoanRecoveries(prev => [{ id: d.id, loan_id: d.loan_id, amount: Number(d.amount), recovered_date: d.recovered_date, note: d.note || '' }, ...prev]);
+      setLoanRecoveries(prev => [{ id: d.id, loan_id: d.loan_id, amount: Number(d.amount), recovered_date: d.recovered_date, note: d.note || '', linked_transaction_id: d.linked_transaction_id ?? null, linked_other_budget_txn_id: d.linked_other_budget_txn_id ?? null }, ...prev]);
     }
-  }, [user]);
+  }, [user, loans, createLinkedEntry]);
 
   const deleteRecovery = useCallback(async (id: string) => {
     if (!user) return;
+    const rec = loanRecoveries.find(r => r.id === id);
+    if (rec) await deleteLinkedEntry(rec.linked_transaction_id, rec.linked_other_budget_txn_id);
     await supabase.from('loan_recoveries').delete().eq('id', id).eq('user_id', user.id);
     setLoanRecoveries(prev => prev.filter(r => r.id !== id));
-  }, [user]);
+  }, [user, loanRecoveries, deleteLinkedEntry]);
   useEffect(() => {
     if (user) {
       refreshProfile();
@@ -553,6 +670,11 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       await supabase.from('other_budget_transactions' as any).delete().eq('transfer_ref_id', id).eq('user_id', user.id);
       setOtherBudgetTxns(prev => prev.filter(t => (t as any).transfer_ref_id !== id));
     }
+    // Lending linkage: remove loan/recovery that references this budget entry
+    await supabase.from('loans').delete().eq('linked_transaction_id', id).eq('user_id', user.id);
+    await supabase.from('loan_recoveries').delete().eq('linked_transaction_id', id).eq('user_id', user.id);
+    setLoans(prev => prev.filter(l => l.linked_transaction_id !== id));
+    setLoanRecoveries(prev => prev.filter(r => r.linked_transaction_id !== id));
   }, [user, transactions]);
 
   const addCategory = useCallback(async (type: 'incoming' | 'outgoing', name: string, icon: string = 'MoreHorizontal', color: string = 'hsl(220, 10%, 46%)') => {
