@@ -1,22 +1,75 @@
-import { useState, useMemo } from 'react';
-import { useBudget, Loan } from '@/lib/budget-context';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useMemo, useEffect } from 'react';
+import { useBudget, Loan, LendingLink } from '@/lib/budget-context';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, HandCoins, Wallet, TrendingUp, Users, Edit2, Trash2, CheckCircle2, Clock } from 'lucide-react';
+import { Plus, HandCoins, Wallet, TrendingUp, Users, Edit2, Trash2, CheckCircle2, Clock, Link2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 type Filter = 'all' | 'open' | 'closed';
+type LinkKind = 'none' | 'monthly' | 'other';
+
+function LinkControls({
+  enabled, setEnabled, kind, setKind, month, setMonth, otherId, setOtherId, otherBudgets, label,
+}: {
+  enabled: boolean; setEnabled: (v: boolean) => void;
+  kind: 'monthly' | 'other'; setKind: (k: 'monthly' | 'other') => void;
+  month: string; setMonth: (m: string) => void;
+  otherId: string; setOtherId: (i: string) => void;
+  otherBudgets: { id: string; name: string }[];
+  label: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border p-3 space-y-3 bg-muted/30">
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-sm font-medium cursor-pointer">{label}</Label>
+        <Switch checked={enabled} onCheckedChange={setEnabled} />
+      </div>
+      {enabled && (
+        <div className="space-y-2 pt-1">
+          <RadioGroup value={kind} onValueChange={(v) => setKind(v as 'monthly' | 'other')} className="flex gap-4">
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <RadioGroupItem value="monthly" id={`${label}-m`} /> Monthly Budget
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <RadioGroupItem value="other" id={`${label}-o`} disabled={otherBudgets.length === 0} /> Other Budget
+            </label>
+          </RadioGroup>
+          {kind === 'monthly' ? (
+            <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+          ) : (
+            <Select value={otherId} onValueChange={setOtherId}>
+              <SelectTrigger><SelectValue placeholder="Pick an Other Budget" /></SelectTrigger>
+              <SelectContent>
+                {otherBudgets.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function buildLink(enabled: boolean, kind: 'monthly' | 'other', month: string, otherId: string): LendingLink {
+  if (!enabled) return null;
+  if (kind === 'monthly') return { kind: 'monthly', month };
+  if (kind === 'other' && otherId) return { kind: 'other', other_budget_id: otherId };
+  return null;
+}
 
 export default function Lending() {
-  const { loans, loanRecoveries, addLoan, editLoan, deleteLoan, addRecovery, deleteRecovery, formatCurrency } = useBudget();
+  const { loans, loanRecoveries, otherBudgets, currentMonth, addLoan, editLoan, deleteLoan, addRecovery, deleteRecovery, formatCurrency } = useBudget();
   const { toast } = useToast();
 
   const [filter, setFilter] = useState<Filter>('all');
@@ -27,13 +80,34 @@ export default function Lending() {
   const [lentDate, setLentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState('');
 
+  // Loan link state
+  const [loanLinkEnabled, setLoanLinkEnabled] = useState(false);
+  const [loanLinkKind, setLoanLinkKind] = useState<'monthly' | 'other'>('monthly');
+  const [loanLinkMonth, setLoanLinkMonth] = useState(currentMonth);
+  const [loanLinkOther, setLoanLinkOther] = useState('');
+
   const [detailLoan, setDetailLoan] = useState<Loan | null>(null);
   const [recAmount, setRecAmount] = useState('');
   const [recDate, setRecDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [recNote, setRecNote] = useState('');
 
+  // Recovery link state
+  const [recLinkEnabled, setRecLinkEnabled] = useState(false);
+  const [recLinkKind, setRecLinkKind] = useState<'monthly' | 'other'>('monthly');
+  const [recLinkMonth, setRecLinkMonth] = useState(currentMonth);
+  const [recLinkOther, setRecLinkOther] = useState('');
+
   const [deleteLoanId, setDeleteLoanId] = useState<string | null>(null);
   const [deleteRecId, setDeleteRecId] = useState<string | null>(null);
+
+  // Keep detailLoan in sync when underlying loans change
+  useEffect(() => {
+    if (detailLoan) {
+      const fresh = loans.find(l => l.id === detailLoan.id);
+      if (fresh && fresh !== detailLoan) setDetailLoan(fresh);
+      if (!fresh) setDetailLoan(null);
+    }
+  }, [loans, detailLoan]);
 
   const recoveredByLoan = useMemo(() => {
     const m = new Map<string, number>();
@@ -60,15 +134,29 @@ export default function Lending() {
     return { lent, recovered, outstanding: Math.max(lent - recovered, 0), active };
   }, [loans, loanRecoveries, enriched]);
 
+  const otherBudgetName = (id?: string | null) => id ? otherBudgets.find(b => b.id === id)?.name : null;
+
+  const resetLoanLinkForm = () => {
+    setLoanLinkEnabled(false); setLoanLinkKind('monthly'); setLoanLinkMonth(currentMonth); setLoanLinkOther('');
+  };
+
   const openAdd = () => {
     setEditingLoan(null);
     setBorrower(''); setAmount(''); setLentDate(new Date().toISOString().slice(0, 10)); setNote('');
+    resetLoanLinkForm();
     setLoanDialog(true);
   };
 
   const openEdit = (l: Loan) => {
     setEditingLoan(l);
     setBorrower(l.borrower_name); setAmount(String(l.amount)); setLentDate(l.lent_date); setNote(l.note);
+    if (l.linked_transaction_id) {
+      setLoanLinkEnabled(true); setLoanLinkKind('monthly'); setLoanLinkMonth(currentMonth); setLoanLinkOther('');
+    } else if (l.linked_other_budget_txn_id) {
+      setLoanLinkEnabled(true); setLoanLinkKind('other'); setLoanLinkOther(''); setLoanLinkMonth(currentMonth);
+    } else {
+      resetLoanLinkForm();
+    }
     setLoanDialog(true);
   };
 
@@ -78,11 +166,21 @@ export default function Lending() {
       toast({ title: 'Enter borrower name and a valid amount', variant: 'destructive' });
       return;
     }
+    if (loanLinkEnabled && loanLinkKind === 'other' && !loanLinkOther) {
+      toast({ title: 'Pick an Other Budget', variant: 'destructive' }); return;
+    }
+    const link = buildLink(loanLinkEnabled, loanLinkKind, loanLinkMonth, loanLinkOther);
     if (editingLoan) {
-      await editLoan(editingLoan.id, { borrower_name: borrower.trim(), amount: amt, lent_date: lentDate, note: note.trim() });
+      const had = editingLoan.linked_transaction_id || editingLoan.linked_other_budget_txn_id;
+      // Only pass link if user changed it (we can't perfectly detect, so always pass when destination differs from current)
+      // For safety: if had link and now enabled with same kind, don't recreate. Otherwise recreate.
+      const sameMonthly = editingLoan.linked_transaction_id && loanLinkEnabled && loanLinkKind === 'monthly';
+      const sameOther = editingLoan.linked_other_budget_txn_id && loanLinkEnabled && loanLinkKind === 'other';
+      const linkChanged = !((had && !loanLinkEnabled) ? false : (!had && !loanLinkEnabled) ? true : sameMonthly || sameOther);
+      await editLoan(editingLoan.id, { borrower_name: borrower.trim(), amount: amt, lent_date: lentDate, note: note.trim() }, linkChanged ? link : undefined);
       toast({ title: 'Loan updated' });
     } else {
-      await addLoan({ borrower_name: borrower.trim(), amount: amt, lent_date: lentDate, note: note.trim() });
+      await addLoan({ borrower_name: borrower.trim(), amount: amt, lent_date: lentDate, note: note.trim() }, link);
       toast({ title: 'Loan recorded' });
     }
     setLoanDialog(false);
@@ -92,8 +190,13 @@ export default function Lending() {
     if (!detailLoan) return;
     const amt = parseFloat(recAmount);
     if (!amt || amt <= 0) { toast({ title: 'Enter a valid amount', variant: 'destructive' }); return; }
-    await addRecovery({ loan_id: detailLoan.id, amount: amt, recovered_date: recDate, note: recNote.trim() });
+    if (recLinkEnabled && recLinkKind === 'other' && !recLinkOther) {
+      toast({ title: 'Pick an Other Budget', variant: 'destructive' }); return;
+    }
+    const link = buildLink(recLinkEnabled, recLinkKind, recLinkMonth, recLinkOther);
+    await addRecovery({ loan_id: detailLoan.id, amount: amt, recovered_date: recDate, note: recNote.trim() }, link);
     setRecAmount(''); setRecNote(''); setRecDate(new Date().toISOString().slice(0, 10));
+    setRecLinkEnabled(false); setRecLinkKind('monthly'); setRecLinkMonth(currentMonth); setRecLinkOther('');
     toast({ title: 'Recovery added' });
   };
 
@@ -152,6 +255,11 @@ export default function Lending() {
         <div className="grid gap-3 sm:grid-cols-2">
           {filtered.map(({ loan, recovered, outstanding, status }) => {
             const pct = loan.amount > 0 ? Math.min((recovered / loan.amount) * 100, 100) : 0;
+            const linkedLabel = loan.linked_transaction_id
+              ? 'Linked to monthly budget'
+              : loan.linked_other_budget_txn_id
+                ? `Linked to ${otherBudgetName(loan.linked_other_budget_txn_id) || 'Other Budget'}`
+                : null;
             return (
               <Card key={loan.id} className="shadow-card hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setDetailLoan(loan)}>
                 <CardContent className="p-4 space-y-3">
@@ -177,6 +285,11 @@ export default function Lending() {
                     <span>{formatCurrency(recovered)} recovered</span>
                     <span>of {formatCurrency(loan.amount)}</span>
                   </div>
+                  {linkedLabel && (
+                    <div className="flex items-center gap-1 text-[11px] text-primary/80 pt-1">
+                      <Link2 className="w-3 h-3" /> {linkedLabel}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -186,13 +299,25 @@ export default function Lending() {
 
       {/* New / Edit loan dialog */}
       <Dialog open={loanDialog} onOpenChange={setLoanDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="font-display">{editingLoan ? 'Edit Loan' : 'New Loan'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5"><Label>Borrower</Label><Input value={borrower} onChange={e => setBorrower(e.target.value)} placeholder="e.g. Alex" /></div>
             <div className="space-y-1.5"><Label>Amount</Label><Input type="number" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" /></div>
             <div className="space-y-1.5"><Label>Date Lent</Label><Input type="date" value={lentDate} onChange={e => setLentDate(e.target.value)} /></div>
             <div className="space-y-1.5"><Label>Note (optional)</Label><Textarea value={note} onChange={e => setNote(e.target.value)} placeholder="What was it for?" rows={2} /></div>
+
+            <LinkControls
+              enabled={loanLinkEnabled} setEnabled={setLoanLinkEnabled}
+              kind={loanLinkKind} setKind={setLoanLinkKind}
+              month={loanLinkMonth} setMonth={setLoanLinkMonth}
+              otherId={loanLinkOther} setOtherId={setLoanLinkOther}
+              otherBudgets={otherBudgets}
+              label="Also record as an outgoing in my budget"
+            />
+            {editingLoan && (editingLoan.linked_transaction_id || editingLoan.linked_other_budget_txn_id) && (
+              <p className="text-xs text-muted-foreground">This loan is linked to a budget entry. Changing destination will replace the linked entry; turning off removes it.</p>
+            )}
           </div>
           <DialogFooter>
             {editingLoan && <Button variant="destructive" className="mr-auto" onClick={() => { setDeleteLoanId(editingLoan.id); setLoanDialog(false); }}><Trash2 className="w-4 h-4 mr-1" /> Delete</Button>}
@@ -231,13 +356,21 @@ export default function Lending() {
                 {detailLoan.note && <p className="text-sm text-muted-foreground italic">"{detailLoan.note}"</p>}
 
                 {detailOutstanding > 0 && (
-                  <div className="rounded-xl border border-border p-3 space-y-2">
+                  <div className="rounded-xl border border-border p-3 space-y-3">
                     <p className="text-sm font-semibold text-foreground">Add Recovery</p>
                     <div className="grid grid-cols-2 gap-2">
                       <Input type="number" inputMode="decimal" placeholder="Amount" value={recAmount} onChange={e => setRecAmount(e.target.value)} />
                       <Input type="date" value={recDate} onChange={e => setRecDate(e.target.value)} />
                     </div>
                     <Input placeholder="Note (optional)" value={recNote} onChange={e => setRecNote(e.target.value)} />
+                    <LinkControls
+                      enabled={recLinkEnabled} setEnabled={setRecLinkEnabled}
+                      kind={recLinkKind} setKind={setRecLinkKind}
+                      month={recLinkMonth} setMonth={setRecLinkMonth}
+                      otherId={recLinkOther} setOtherId={setRecLinkOther}
+                      otherBudgets={otherBudgets}
+                      label="Also record as an incoming in my budget"
+                    />
                     <Button size="sm" className="w-full" onClick={addRec}><Plus className="w-4 h-4 mr-1" /> Record Recovery</Button>
                   </div>
                 )}
@@ -248,15 +381,23 @@ export default function Lending() {
                     <p className="text-sm text-muted-foreground py-2">No recoveries yet.</p>
                   ) : (
                     <div className="space-y-1.5">
-                      {detailRecoveries.map(r => (
-                        <div key={r.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/40">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground">{formatCurrency(r.amount)}</p>
-                            <p className="text-xs text-muted-foreground">{new Date(r.recovered_date).toLocaleDateString()}{r.note ? ` · ${r.note}` : ''}</p>
+                      {detailRecoveries.map(r => {
+                        const recLinked = r.linked_transaction_id
+                          ? 'Linked to monthly budget'
+                          : r.linked_other_budget_txn_id
+                            ? `Linked to ${otherBudgetName(r.linked_other_budget_txn_id) || 'Other Budget'}`
+                            : null;
+                        return (
+                          <div key={r.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/40">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground">{formatCurrency(r.amount)}</p>
+                              <p className="text-xs text-muted-foreground">{new Date(r.recovered_date).toLocaleDateString()}{r.note ? ` · ${r.note}` : ''}</p>
+                              {recLinked && <p className="text-[11px] text-primary/80 flex items-center gap-1 mt-0.5"><Link2 className="w-3 h-3" />{recLinked}</p>}
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteRecId(r.id)}><Trash2 className="w-4 h-4" /></Button>
                           </div>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteRecId(r.id)}><Trash2 className="w-4 h-4" /></Button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -271,7 +412,7 @@ export default function Lending() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this loan?</AlertDialogTitle>
-            <AlertDialogDescription>This permanently deletes the loan and all its recovery entries. This cannot be undone.</AlertDialogDescription>
+            <AlertDialogDescription>This permanently deletes the loan, all its recovery entries, and any linked budget entries. This cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -284,7 +425,7 @@ export default function Lending() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this recovery?</AlertDialogTitle>
-            <AlertDialogDescription>This will reduce the recovered total for this loan.</AlertDialogDescription>
+            <AlertDialogDescription>This will reduce the recovered total for this loan and remove the linked budget entry (if any).</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
