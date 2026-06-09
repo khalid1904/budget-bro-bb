@@ -99,6 +99,8 @@ export type Database = {
           amount: number
           created_at: string
           id: string
+          linked_other_budget_txn_id: string | null
+          linked_transaction_id: string | null
           loan_id: string
           note: string | null
           recovered_date: string
@@ -109,6 +111,8 @@ export type Database = {
           amount: number
           created_at?: string
           id?: string
+          linked_other_budget_txn_id?: string | null
+          linked_transaction_id?: string | null
           loan_id: string
           note?: string | null
           recovered_date: string
@@ -119,6 +123,8 @@ export type Database = {
           amount?: number
           created_at?: string
           id?: string
+          linked_other_budget_txn_id?: string | null
+          linked_transaction_id?: string | null
           loan_id?: string
           note?: string | null
           recovered_date?: string
@@ -142,6 +148,8 @@ export type Database = {
           created_at: string
           id: string
           lent_date: string
+          linked_other_budget_txn_id: string | null
+          linked_transaction_id: string | null
           note: string | null
           updated_at: string
           user_id: string
@@ -152,6 +160,8 @@ export type Database = {
           created_at?: string
           id?: string
           lent_date: string
+          linked_other_budget_txn_id?: string | null
+          linked_transaction_id?: string | null
           note?: string | null
           updated_at?: string
           user_id: string
@@ -162,6 +172,8 @@ export type Database = {
           created_at?: string
           id?: string
           lent_date?: string
+          linked_other_budget_txn_id?: string | null
+          linked_transaction_id?: string | null
           note?: string | null
           updated_at?: string
           user_id?: string

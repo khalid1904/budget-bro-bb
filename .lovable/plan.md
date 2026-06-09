@@ -1,76 +1,68 @@
-## Goal
+# Plan — Link Lending Entries to Budgets (Optional)
 
-Add a **Lending** module so users can record money lent to people and log recoveries (full or partial) over time. Pro-only, toggleable from Settings. Standalone records — no automatic monthly/Other Budget entries are created; the user keeps full control of their budget separately. ( If possible give a catchy name for this module in case of loading based upon this feature's use cases )
+Add an optional "Add to budget" toggle on both **New Loan** and **Add Recovery** forms in the Lending module. When enabled, a real outgoing/incoming entry is created in either a monthly budget or an Other Budget and stays fully linked to the lending record (edits and deletes cascade in both directions, mirroring how transfers behave today).
 
 ## Behaviour
 
-- **Lend entry**: borrower name, amount, date lent, optional note.
-- **Recoveries**: a loan can have many recovery entries (date + amount + optional note). Status auto-derives from totals:
-  - `Outstanding` — recovered < lent
-  - `Partially Recovered` — 0 < recovered < lent
-  - `Fully Recovered` — recovered ≥ lent
-- **Linkage** (within the module): deleting a loan cascades and removes all its recoveries. Deleting a recovery just reduces the recovered total.
-- **No auto budget entries**: lending and recoveries do **not** create transactions in monthly budgets or Other Budgets. (User picked "standalone" for both source and destination.) If they want it reflected in their budget, they add a normal outgoing/incoming themselves.
+- **New Loan** dialog gets an optional section:
+  - Toggle: "Also record as an outgoing in my budget"
+  - Destination: Monthly Budget (pick month, defaults to current) **or** an Other Budget (pick which)
+  - Category is auto-set to a default **"Lending"** Spending category (auto-created in `custom_categories` with a handshake/coins icon on first use)
+  - Title auto-set to "Lent to {borrower}"; date = loan's `lent_date`
+- **Add Recovery** form gets the same optional section:
+  - Toggle: "Also record as an incoming in my budget"
+  - Same destination choices
+  - Category auto-set to **"Loan Recovery"** (also auto-created with an icon)
+  - Title auto-set to "Recovery from {borrower}"; date = recovery date
+- Defaults to **off**, so existing flow is unchanged.
 
-## Settings toggle
+## Link behavior (fully linked, transfers-style)
 
-New Pro switch on Settings → Pro Features: **Enable Lending Tracker**. When off, the sidebar item and `/lending` route are hidden (mirrors Expense Tracking pattern). Stored on `user_settings.lending_enabled`.
+- Creating a linked loan/recovery inserts the budget entry first, then stores its id on the lending row.
+- **Editing** loan amount/date/borrower also patches the linked transaction (amount, date, title). Same for recoveries.
+- **Deleting** a loan deletes its linked transaction *and* every recovery's linked transaction (via the existing cascade on recoveries).
+- **Deleting** a recovery deletes its linked transaction.
+- **Deleting the budget entry directly** (from Budget / Other Budget page) also removes the corresponding loan or recovery row, so the two sides never drift.
+- Switching destination during edit = old linked entry deleted, new one created.
 
-## Pages
+## Data model
 
-### `/lending` (new)
-
-- Summary cards: Total Lent, Total Recovered, Outstanding, # Active Loans.
-- "New Loan" button → dialog (borrower, amount, date, note).
-- List of loans, each card shows: borrower, lent amount, recovered amount, outstanding, status pill, progress bar, date.
-- Click loan → detail drawer/dialog with recovery history, "Add Recovery" form, edit/delete loan, delete individual recovery.
-- Filters: All / Outstanding / Fully Recovered. Sort by date or outstanding amount.
-
-### Sidebar
-
-Add "Lending" entry between Savings Goals and Analytics, gated by `isPro && settings.lending_enabled`.
-
-## Data model (Supabase)
+Add nullable link columns (no FKs to avoid cross-cascade surprises — handled in code like transfers):
 
 ```sql
-create table public.loans (
-  id uuid pk,
-  user_id uuid → auth.users,
-  borrower_name text not null,
-  amount numeric not null,
-  lent_date date not null,
-  note text,
-  created_at, updated_at
-);
+ALTER TABLE public.loans
+  ADD COLUMN linked_transaction_id uuid,
+  ADD COLUMN linked_other_budget_txn_id uuid;
 
-create table public.loan_recoveries (
-  id uuid pk,
-  user_id uuid → auth.users,
-  loan_id uuid → public.loans on delete cascade,
-  amount numeric not null,
-  recovered_date date not null,
-  note text,
-  created_at, updated_at
-);
+ALTER TABLE public.loan_recoveries
+  ADD COLUMN linked_transaction_id uuid,
+  ADD COLUMN linked_other_budget_txn_id uuid;
+
+CREATE INDEX ON public.loans (linked_transaction_id);
+CREATE INDEX ON public.loans (linked_other_budget_txn_id);
+CREATE INDEX ON public.loan_recoveries (linked_transaction_id);
+CREATE INDEX ON public.loan_recoveries (linked_other_budget_txn_id);
 ```
 
-- RLS: owner-only (`auth.uid() = user_id`) on both, with standard `GRANT SELECT/INSERT/UPDATE/DELETE TO authenticated` + `GRANT ALL TO service_role`.
-- `ON DELETE CASCADE` on `loan_recoveries.loan_id` enforces "delete loan → recoveries gone".
-- Indexes on `(user_id, lent_date)` and `(loan_id)`.
-- Add `lending_enabled boolean default false` to `user_settings`.
+No new RLS needed — existing owner-only policies cover the new columns. Existing `loan_recoveries.loan_id ON DELETE CASCADE` still applies, but we'll handle linked-entry cleanup in code before deleting the loan so linked transactions also disappear.
 
 ## Code changes
 
-- `src/lib/budget-context.tsx` — add `loans`, `loanRecoveries` state + CRUD (`addLoan`, `editLoan`, `deleteLoan`, `addRecovery`, `deleteRecovery`), include `lending_enabled` in settings type/loader/updater.
-- `src/pages/Lending.tsx` — new page (summary + list + detail dialog).
-- `src/components/layout/AppLayout.tsx` — add nav item (Pro + lending toggle).
-- `src/App.tsx` — add `/lending` route wrapped in `TierRoute`.
-- `src/pages/Settings.tsx` — add Lending toggle in Pro Features card.
-- `src/pages/Landing.tsx` — add "Lending Tracker" to features list.
+- `src/lib/budget-context.tsx`
+  - Extend `Loan` / `LoanRecovery` interfaces with `linked_transaction_id` and `linked_other_budget_txn_id`.
+  - `addLoan` / `addRecovery` accept optional `link: { kind: 'monthly', month } | { kind: 'other', other_budget_id }`; perform the insert into `transactions` or `other_budget_transactions` first, then save the loan/recovery with the resulting id.
+  - `editLoan` / (new) `editRecovery` mirror amount/date/borrower changes to the linked entry; if destination changes, delete the old linked entry and create a new one.
+  - `deleteLoan`: pre-fetch all recoveries for the loan, delete every linked transaction (loan + recoveries), then delete the loan (cascade clears recovery rows).
+  - `deleteRecovery`: delete the linked transaction first, then the recovery.
+  - `deleteTransaction` / `deleteOtherBudgetTransaction`: also clear the matching loan/recovery row when their linked id points to it (mirrors current transfer cleanup).
+  - Helper `ensureLendingCategory(kind: 'lending' | 'recovery')` — looks up or creates the default `custom_categories` row (Spending, icon `HandCoins` / `TrendingUp`).
+- `src/pages/Lending.tsx`
+  - Add the optional "Add to budget" block in the New/Edit Loan dialog and the Add Recovery form (Switch + destination Select).
+  - Show a small "Linked to {month} budget" or "Linked to {Other Budget name}" hint on the loan card / recovery row when a link exists.
+  - When editing a loan that already has a link, preselect the existing destination.
 
 ## Out of scope
 
-- Auto budget linkage (explicitly skipped per user choice).
-- Reminders/notifications for due loans (future).
-- Interest calculations.
-- Multi-currency per loan — uses default currency from settings.
+- Custom category picker for lending entries (default "Lending" / "Loan Recovery" only — per user choice).
+- Backfilling links for existing loans/recoveries (they stay standalone unless edited and re-linked).
+- Reflecting recoveries from a closed loan into past months automatically.
