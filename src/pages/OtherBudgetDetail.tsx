@@ -57,8 +57,8 @@ export default function OtherBudgetDetailPage() {
   const activeGoals = useMemo(() => savingsGoals.filter(g => g.status === 'active'), [savingsGoals]);
 
   const filteredTxns = useMemo(
-    () => txns.filter(t => t.type === activeTab).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [txns, activeTab]
+    () => sortItems(txns.filter(t => t.type === activeTab), sortBy),
+    [txns, activeTab, sortBy]
   );
 
   const reset = () => { setTitle(''); setAmount(''); setCategory(''); setDate(''); setEditId(null); setGoalId('none'); };
