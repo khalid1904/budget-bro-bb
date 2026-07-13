@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TransferDialog } from '@/components/TransferDialog';
+import { sortItems, SORT_OPTIONS, SortOption, formatAddedAt } from '@/lib/sort-utils';
 
 function getMonthOptions() {
   const months: string[] = [];
@@ -45,6 +46,7 @@ export default function BudgetPage() {
   const [date, setDate] = useState('');
   const [goalId, setGoalId] = useState<string>('none');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [sortBy, setSortBy] = useState<SortOption>('date_desc');
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importSourceMonth, setImportSourceMonth] = useState<string>('');
   const [importMode, setImportMode] = useState<'all' | 'select'>('all');
@@ -136,11 +138,13 @@ export default function BudgetPage() {
   const activeGoals = useMemo(() => savingsGoals.filter(g => g.status === 'active'), [savingsGoals]);
 
   const filteredTxns = useMemo(() =>
-    transactions
-      .filter(t => t.month === currentMonth && t.type === activeTab)
-      .filter(t => filterCategory === 'all' || t.category === filterCategory)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [transactions, currentMonth, activeTab, filterCategory]
+    sortItems(
+      transactions
+        .filter(t => t.month === currentMonth && t.type === activeTab)
+        .filter(t => filterCategory === 'all' || t.category === filterCategory),
+      sortBy
+    ),
+    [transactions, currentMonth, activeTab, filterCategory, sortBy]
   );
 
   const total = useMemo(() =>
@@ -228,6 +232,12 @@ export default function BudgetPage() {
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
                 {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+              <SelectTrigger className="w-[160px] sm:w-[190px]"><SelectValue placeholder="Sort by" /></SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
               </SelectContent>
             </Select>
             {isPro && (
@@ -381,6 +391,9 @@ export default function BudgetPage() {
                                   </span>
                                 )}
                                 {tx.date && <span className="text-xs text-muted-foreground">{new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                                {formatAddedAt((tx as any).created_at) && (
+                                  <span className="text-[11px] text-muted-foreground/70">· added {formatAddedAt((tx as any).created_at)}</span>
+                                )}
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
                                 {activeTab === 'outgoing' && settings.expense_tracking_enabled && !isAlreadySpent(tx.id) && (

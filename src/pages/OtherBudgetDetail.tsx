@@ -14,6 +14,7 @@ import { Plus, Trash2, Edit2, ArrowLeft, TrendingUp, TrendingDown, Target } from
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TransferDialog } from '@/components/TransferDialog';
+import { sortItems, SORT_OPTIONS, SortOption, formatAddedAt } from '@/lib/sort-utils';
 
 export default function OtherBudgetDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -31,6 +32,7 @@ export default function OtherBudgetDetailPage() {
   const [category, setCategory] = useState('');
   const [date, setDate] = useState('');
   const [goalId, setGoalId] = useState<string>('none');
+  const [sortBy, setSortBy] = useState<SortOption>('date_desc');
 
   const txns = useMemo(() => otherBudgetTxns.filter(t => t.other_budget_id === id), [otherBudgetTxns, id]);
 
@@ -55,8 +57,8 @@ export default function OtherBudgetDetailPage() {
   const activeGoals = useMemo(() => savingsGoals.filter(g => g.status === 'active'), [savingsGoals]);
 
   const filteredTxns = useMemo(
-    () => txns.filter(t => t.type === activeTab).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [txns, activeTab]
+    () => sortItems(txns.filter(t => t.type === activeTab), sortBy),
+    [txns, activeTab, sortBy]
   );
 
   const reset = () => { setTitle(''); setAmount(''); setCategory(''); setDate(''); setEditId(null); setGoalId('none'); };
@@ -128,6 +130,12 @@ export default function OtherBudgetDetailPage() {
             <TabsTrigger value="outgoing" className="gap-1.5"><TrendingDown className="w-4 h-4" /> Allocations</TabsTrigger>
           </TabsList>
           <div className="flex flex-wrap items-center gap-2">
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+              <SelectTrigger className="w-[160px] sm:w-[190px]"><SelectValue placeholder="Sort by" /></SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
             {isPro && settings.cross_budget_transfers_enabled && (
               <TransferDialog defaultDirection="other_to_monthly" fixedOtherBudgetId={budget.id} />
             )}
@@ -198,6 +206,9 @@ export default function OtherBudgetDetailPage() {
                             <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                               <span className="text-xs text-muted-foreground">{t.category}</span>
                               <span className="text-xs text-muted-foreground">{new Date(t.date).toLocaleDateString()}</span>
+                              {formatAddedAt((t as any).created_at) && (
+                                <span className="text-[11px] text-muted-foreground/70">· added {formatAddedAt((t as any).created_at)}</span>
+                              )}
                               {t.transfer_ref_id && (
                                 <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">↔ Transfer</span>
                               )}

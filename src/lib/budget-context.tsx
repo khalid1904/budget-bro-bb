@@ -63,6 +63,7 @@ interface Transaction {
   month: string;
   goal_id?: string | null;
   transfer_ref_id?: string | null;
+  created_at?: string;
 }
 
 interface SavingsGoal {
@@ -84,6 +85,7 @@ interface Expense {
   month: string;
   budget_transaction_id?: string | null;
   notes?: string;
+  created_at?: string;
 }
 
 interface OtherBudget {
@@ -103,6 +105,7 @@ interface OtherBudgetTxn {
   date: string;
   goal_id?: string | null;
   transfer_ref_id?: string | null;
+  created_at?: string;
 }
 
 interface BudgetContextType {
@@ -322,7 +325,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const refreshExpenses = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase.from('expenses' as any).select('*').eq('user_id', user.id).order('date', { ascending: false });
-    if (data) setExpenses((data as any[]).map(e => ({ id: e.id, title: e.title, amount: Number(e.amount), category: e.category, date: e.date, month: e.month, budget_transaction_id: e.budget_transaction_id, notes: e.notes || '' })));
+    if (data) setExpenses((data as any[]).map(e => ({ id: e.id, title: e.title, amount: Number(e.amount), category: e.category, date: e.date, month: e.month, budget_transaction_id: e.budget_transaction_id, notes: e.notes || '', created_at: e.created_at })));
   }, [user]);
 
   const refreshOtherBudgets = useCallback(async () => {
@@ -336,7 +339,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     const { data } = await supabase.from('other_budget_transactions' as any).select('*').eq('user_id', user.id).order('date', { ascending: false });
     if (data) setOtherBudgetTxns((data as any[]).map(t => ({
       id: t.id, other_budget_id: t.other_budget_id, title: t.title, amount: Number(t.amount),
-      category: t.category, type: t.type, date: t.date, goal_id: t.goal_id ?? null, transfer_ref_id: t.transfer_ref_id ?? null,
+      category: t.category, type: t.type, date: t.date, goal_id: t.goal_id ?? null, transfer_ref_id: t.transfer_ref_id ?? null, created_at: t.created_at,
     })));
   }, [user]);
 
@@ -373,7 +376,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       const d = data as any;
       setOtherBudgetTxns(prev => [{
         id: d.id, other_budget_id: d.other_budget_id, title: d.title, amount: Number(d.amount),
-        category: d.category, type: d.type, date: d.date, goal_id: d.goal_id ?? null,
+        category: d.category, type: d.type, date: d.date, goal_id: d.goal_id ?? null, created_at: d.created_at,
       }, ...prev]);
     }
   }, [user]);
@@ -434,7 +437,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       }
       await supabase.from('other_budget_transactions' as any).update({ transfer_ref_id: dst.id } as any).eq('id', (src as any).id);
       const s: any = src;
-      setOtherBudgetTxns(prev => [{ id: s.id, other_budget_id: s.other_budget_id, title: s.title, amount: Number(s.amount), category: s.category, type: s.type, date: s.date, goal_id: null, transfer_ref_id: dst.id }, ...prev]);
+      setOtherBudgetTxns(prev => [{ id: s.id, other_budget_id: s.other_budget_id, title: s.title, amount: Number(s.amount), category: s.category, type: s.type, date: s.date, goal_id: null, transfer_ref_id: dst.id, created_at: s.created_at }, ...prev]);
       setTransactions(prev => [{ ...dst, amount: Number(dst.amount), goal_id: null, transfer_ref_id: (src as any).id } as any, ...prev]);
     } else {
       // Source: outgoing on monthly; Dest: incoming on other_budget
@@ -452,7 +455,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       await supabase.from('transactions').update({ transfer_ref_id: (dst as any).id } as any).eq('id', (src as any).id);
       const d: any = dst;
       setTransactions(prev => [{ ...src, amount: Number(src.amount), goal_id: null, transfer_ref_id: d.id } as any, ...prev]);
-      setOtherBudgetTxns(prev => [{ id: d.id, other_budget_id: d.other_budget_id, title: d.title, amount: Number(d.amount), category: d.category, type: d.type, date: d.date, goal_id: null, transfer_ref_id: (src as any).id }, ...prev]);
+      setOtherBudgetTxns(prev => [{ id: d.id, other_budget_id: d.other_budget_id, title: d.title, amount: Number(d.amount), category: d.category, type: d.type, date: d.date, goal_id: null, transfer_ref_id: (src as any).id, created_at: d.created_at }, ...prev]);
     }
   }, [user]);
 
@@ -515,7 +518,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
         const d = data as any;
         setOtherBudgetTxns(prev => [{
           id: d.id, other_budget_id: d.other_budget_id, title: d.title, amount: Number(d.amount),
-          category: d.category, type: d.type, date: d.date, goal_id: null, transfer_ref_id: null,
+          category: d.category, type: d.type, date: d.date, goal_id: null, transfer_ref_id: null, created_at: d.created_at,
         }, ...prev]);
         return { linked_transaction_id: null, linked_other_budget_txn_id: d.id };
       }
@@ -735,7 +738,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     const { data } = await supabase.from('expenses' as any).insert({ ...e, user_id: user.id } as any).select().single();
     if (data) {
       const d = data as any;
-      setExpenses(prev => [{ id: d.id, title: d.title, amount: Number(d.amount), category: d.category, date: d.date, month: d.month, budget_transaction_id: d.budget_transaction_id, notes: d.notes || '' }, ...prev]);
+      setExpenses(prev => [{ id: d.id, title: d.title, amount: Number(d.amount), category: d.category, date: d.date, month: d.month, budget_transaction_id: d.budget_transaction_id, notes: d.notes || '', created_at: d.created_at }, ...prev]);
     }
   }, [user]);
 

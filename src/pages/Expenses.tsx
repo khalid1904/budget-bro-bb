@@ -12,6 +12,7 @@ import { Plus, Trash2, Edit2, TrendingDown, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Progress } from '@/components/ui/progress';
+import { sortItems, SORT_OPTIONS, SortOption, formatAddedAt } from '@/lib/sort-utils';
 
 function getMonthOptions() {
   const months: string[] = [];
@@ -39,16 +40,19 @@ export default function ExpensesPage() {
   const [date, setDate] = useState('');
   const [notes, setNotes] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [sortBy, setSortBy] = useState<SortOption>('date_desc');
 
   const monthOptions = getMonthOptions();
   const allCategories = [...DEFAULT_OUTGOING_CATEGORIES, ...customCategories.outgoing];
 
   const monthExpenses = useMemo(() =>
-    expenses
-      .filter(e => e.month === currentMonth)
-      .filter(e => filterCategory === 'all' || e.category === filterCategory)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [expenses, currentMonth, filterCategory]
+    sortItems(
+      expenses
+        .filter(e => e.month === currentMonth)
+        .filter(e => filterCategory === 'all' || e.category === filterCategory),
+      sortBy
+    ),
+    [expenses, currentMonth, filterCategory, sortBy]
   );
 
   const totalExpenses = useMemo(() =>
@@ -169,13 +173,21 @@ export default function ExpensesPage() {
 
       {/* Expense List */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Filter" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger className="w-[140px] sm:w-[160px]"><SelectValue placeholder="Filter" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+            <SelectTrigger className="w-[160px] sm:w-[190px]"><SelectValue placeholder="Sort by" /></SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
         <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
           <DialogTrigger asChild><Button><Plus className="w-4 h-4 mr-1" /> Add Expense</Button></DialogTrigger>
           <DialogContent>
@@ -228,6 +240,9 @@ export default function ExpensesPage() {
                               <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">From Budget</span>
                             )}
                             {exp.date && <span className="text-xs text-muted-foreground">{new Date(exp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                            {formatAddedAt((exp as any).created_at) && (
+                              <span className="text-[11px] text-muted-foreground/70">· added {formatAddedAt((exp as any).created_at)}</span>
+                            )}
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(exp.id)}><Edit2 className="w-4 h-4" /></Button>
