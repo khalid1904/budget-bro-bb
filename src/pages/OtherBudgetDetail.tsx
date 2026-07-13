@@ -14,6 +14,7 @@ import { Plus, Trash2, Edit2, ArrowLeft, TrendingUp, TrendingDown, Target } from
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TransferDialog } from '@/components/TransferDialog';
+import { sortItems, SORT_OPTIONS, SortOption, formatAddedAt } from '@/lib/sort-utils';
 
 export default function OtherBudgetDetailPage() {
   const { id } = useParams<{ id: string }>();
