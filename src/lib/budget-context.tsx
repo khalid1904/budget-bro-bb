@@ -63,6 +63,7 @@ interface Transaction {
   month: string;
   goal_id?: string | null;
   transfer_ref_id?: string | null;
+  created_at?: string;
 }
 
 interface SavingsGoal {
