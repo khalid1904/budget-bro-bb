@@ -12,6 +12,7 @@ import { Plus, Trash2, Edit2, TrendingDown, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Progress } from '@/components/ui/progress';
+import { sortItems, SORT_OPTIONS, SortOption, formatAddedAt } from '@/lib/sort-utils';
 
 function getMonthOptions() {
   const months: string[] = [];
