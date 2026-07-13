@@ -138,11 +138,13 @@ export default function BudgetPage() {
   const activeGoals = useMemo(() => savingsGoals.filter(g => g.status === 'active'), [savingsGoals]);
 
   const filteredTxns = useMemo(() =>
-    transactions
-      .filter(t => t.month === currentMonth && t.type === activeTab)
-      .filter(t => filterCategory === 'all' || t.category === filterCategory)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [transactions, currentMonth, activeTab, filterCategory]
+    sortItems(
+      transactions
+        .filter(t => t.month === currentMonth && t.type === activeTab)
+        .filter(t => filterCategory === 'all' || t.category === filterCategory),
+      sortBy
+    ),
+    [transactions, currentMonth, activeTab, filterCategory, sortBy]
   );
 
   const total = useMemo(() =>
