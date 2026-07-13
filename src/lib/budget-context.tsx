@@ -339,7 +339,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     const { data } = await supabase.from('other_budget_transactions' as any).select('*').eq('user_id', user.id).order('date', { ascending: false });
     if (data) setOtherBudgetTxns((data as any[]).map(t => ({
       id: t.id, other_budget_id: t.other_budget_id, title: t.title, amount: Number(t.amount),
-      category: t.category, type: t.type, date: t.date, goal_id: t.goal_id ?? null, transfer_ref_id: t.transfer_ref_id ?? null,
+      category: t.category, type: t.type, date: t.date, goal_id: t.goal_id ?? null, transfer_ref_id: t.transfer_ref_id ?? null, created_at: t.created_at,
     })));
   }, [user]);
 
