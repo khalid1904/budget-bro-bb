@@ -85,6 +85,7 @@ interface Expense {
   month: string;
   budget_transaction_id?: string | null;
   notes?: string;
+  created_at?: string;
 }
 
 interface OtherBudget {
@@ -104,6 +105,7 @@ interface OtherBudgetTxn {
   date: string;
   goal_id?: string | null;
   transfer_ref_id?: string | null;
+  created_at?: string;
 }
 
 interface BudgetContextType {
