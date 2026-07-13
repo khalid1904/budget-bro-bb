@@ -738,7 +738,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     const { data } = await supabase.from('expenses' as any).insert({ ...e, user_id: user.id } as any).select().single();
     if (data) {
       const d = data as any;
-      setExpenses(prev => [{ id: d.id, title: d.title, amount: Number(d.amount), category: d.category, date: d.date, month: d.month, budget_transaction_id: d.budget_transaction_id, notes: d.notes || '' }, ...prev]);
+      setExpenses(prev => [{ id: d.id, title: d.title, amount: Number(d.amount), category: d.category, date: d.date, month: d.month, budget_transaction_id: d.budget_transaction_id, notes: d.notes || '', created_at: d.created_at }, ...prev]);
     }
   }, [user]);
 
