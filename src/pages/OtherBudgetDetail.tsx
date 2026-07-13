@@ -130,6 +130,12 @@ export default function OtherBudgetDetailPage() {
             <TabsTrigger value="outgoing" className="gap-1.5"><TrendingDown className="w-4 h-4" /> Allocations</TabsTrigger>
           </TabsList>
           <div className="flex flex-wrap items-center gap-2">
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+              <SelectTrigger className="w-[160px] sm:w-[190px]"><SelectValue placeholder="Sort by" /></SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
             {isPro && settings.cross_budget_transfers_enabled && (
               <TransferDialog defaultDirection="other_to_monthly" fixedOtherBudgetId={budget.id} />
             )}
