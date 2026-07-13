@@ -32,6 +32,7 @@ export default function OtherBudgetDetailPage() {
   const [category, setCategory] = useState('');
   const [date, setDate] = useState('');
   const [goalId, setGoalId] = useState<string>('none');
+  const [sortBy, setSortBy] = useState<SortOption>('date_desc');
 
   const txns = useMemo(() => otherBudgetTxns.filter(t => t.other_budget_id === id), [otherBudgetTxns, id]);
 
