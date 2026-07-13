@@ -391,6 +391,9 @@ export default function BudgetPage() {
                                   </span>
                                 )}
                                 {tx.date && <span className="text-xs text-muted-foreground">{new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                                {formatAddedAt((tx as any).created_at) && (
+                                  <span className="text-[11px] text-muted-foreground/70">· added {formatAddedAt((tx as any).created_at)}</span>
+                                )}
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
                                 {activeTab === 'outgoing' && settings.expense_tracking_enabled && !isAlreadySpent(tx.id) && (
