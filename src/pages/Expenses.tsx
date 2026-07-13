@@ -40,16 +40,19 @@ export default function ExpensesPage() {
   const [date, setDate] = useState('');
   const [notes, setNotes] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [sortBy, setSortBy] = useState<SortOption>('date_desc');
 
   const monthOptions = getMonthOptions();
   const allCategories = [...DEFAULT_OUTGOING_CATEGORIES, ...customCategories.outgoing];
 
   const monthExpenses = useMemo(() =>
-    expenses
-      .filter(e => e.month === currentMonth)
-      .filter(e => filterCategory === 'all' || e.category === filterCategory)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [expenses, currentMonth, filterCategory]
+    sortItems(
+      expenses
+        .filter(e => e.month === currentMonth)
+        .filter(e => filterCategory === 'all' || e.category === filterCategory),
+      sortBy
+    ),
+    [expenses, currentMonth, filterCategory, sortBy]
   );
 
   const totalExpenses = useMemo(() =>
