@@ -1,68 +1,36 @@
-# Plan — Link Lending Entries to Budgets (Optional)
+## Plan: Sort options + entry timestamps on Budget & Expense views
 
-Add an optional "Add to budget" toggle on both **New Loan** and **Add Recovery** forms in the Lending module. When enabled, a real outgoing/incoming entry is created in either a monthly budget or an Other Budget and stays fully linked to the lending record (edits and deletes cascade in both directions, mirroring how transfers behave today).
+### What you get
 
-## Behaviour
+- A small **time hint** on each transaction row (e.g. `Jan 12 · 3:42 PM`) — no manual entry, uses the automatic `created_at` we already store when the entry was added/last edited.
+- A **Sort** dropdown on the Budget page (Income + Allocations tabs), Expenses page, and Other Budget detail page, with these options:
+  - Transaction date — newest first *(default, current behaviour)*
+  - Transaction date — oldest first
+  - Time added — newest first
+  - Time added — oldest first
+  - Amount — high to low
+  - Amount — low to high
+  - Title — A to Z
+  - Title — Z to A
 
-- **New Loan** dialog gets an optional section:
-  - Toggle: "Also record as an outgoing in my budget"
-  - Destination: Monthly Budget (pick month, defaults to current) **or** an Other Budget (pick which)
-  - Category is auto-set to a default **"Lending"** Spending category (auto-created in `custom_categories` with a handshake/coins icon on first use)
-  - Title auto-set to "Lent to {borrower}"; date = loan's `lent_date`
-- **Add Recovery** form gets the same optional section:
-  - Toggle: "Also record as an incoming in my budget"
-  - Same destination choices
-  - Category auto-set to **"Loan Recovery"** (also auto-created with an icon)
-  - Title auto-set to "Recovery from {borrower}"; date = recovery date
-- Defaults to **off**, so existing flow is unchanged.
+### Data model
 
-## Link behavior (fully linked, transfers-style)
+No schema change needed — `created_at` and `updated_at` already exist on `transactions`, `expenses`, and `other_budget_transactions`. We'll surface `created_at` as the timestamp.
 
-- Creating a linked loan/recovery inserts the budget entry first, then stores its id on the lending row.
-- **Editing** loan amount/date/borrower also patches the linked transaction (amount, date, title). Same for recoveries.
-- **Deleting** a loan deletes its linked transaction *and* every recovery's linked transaction (via the existing cascade on recoveries).
-- **Deleting** a recovery deletes its linked transaction.
-- **Deleting the budget entry directly** (from Budget / Other Budget page) also removes the corresponding loan or recovery row, so the two sides never drift.
-- Switching destination during edit = old linked entry deleted, new one created.
+### Files touched (frontend only)
 
-## Data model
+- `src/lib/budget-context.tsx` — expose `created_at` on the `Transaction`, `Expense`, and `OtherBudgetTxn` types (already fetched, just need to include it).
+- `src/pages/Budget.tsx` — add Sort `Select`, apply sort to income + allocation lists, show small time hint under each entry.
+- `src/pages/Expenses.tsx` — same Sort dropdown + time hint on each expense row.
+- `src/pages/OtherBudgetDetail.tsx` — same Sort dropdown + time hint on each entry.
+- Time formatting: local `toLocaleString` with `{ month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }`, rendered in muted-foreground text-[11px] next to the transaction date.
 
-Add nullable link columns (no FKs to avoid cross-cascade surprises — handled in code like transfers):
+### Persistence
 
-```sql
-ALTER TABLE public.loans
-  ADD COLUMN linked_transaction_id uuid,
-  ADD COLUMN linked_other_budget_txn_id uuid;
+Sort choice is kept in component state per page (resets on reload). No settings row needed — happy to persist to `user_settings` later if you want.
 
-ALTER TABLE public.loan_recoveries
-  ADD COLUMN linked_transaction_id uuid,
-  ADD COLUMN linked_other_budget_txn_id uuid;
+### Out of scope
 
-CREATE INDEX ON public.loans (linked_transaction_id);
-CREATE INDEX ON public.loans (linked_other_budget_txn_id);
-CREATE INDEX ON public.loan_recoveries (linked_transaction_id);
-CREATE INDEX ON public.loan_recoveries (linked_other_budget_txn_id);
-```
-
-No new RLS needed — existing owner-only policies cover the new columns. Existing `loan_recoveries.loan_id ON DELETE CASCADE` still applies, but we'll handle linked-entry cleanup in code before deleting the loan so linked transactions also disappear.
-
-## Code changes
-
-- `src/lib/budget-context.tsx`
-  - Extend `Loan` / `LoanRecovery` interfaces with `linked_transaction_id` and `linked_other_budget_txn_id`.
-  - `addLoan` / `addRecovery` accept optional `link: { kind: 'monthly', month } | { kind: 'other', other_budget_id }`; perform the insert into `transactions` or `other_budget_transactions` first, then save the loan/recovery with the resulting id.
-  - `editLoan` / (new) `editRecovery` mirror amount/date/borrower changes to the linked entry; if destination changes, delete the old linked entry and create a new one.
-  - `deleteLoan`: pre-fetch all recoveries for the loan, delete every linked transaction (loan + recoveries), then delete the loan (cascade clears recovery rows).
-  - `deleteRecovery`: delete the linked transaction first, then the recovery.
-  - `deleteTransaction` / `deleteOtherBudgetTransaction`: also clear the matching loan/recovery row when their linked id points to it (mirrors current transfer cleanup).
-  - Helper `ensureLendingCategory(kind: 'lending' | 'recovery')` — looks up or creates the default `custom_categories` row (Spending, icon `HandCoins` / `TrendingUp`).
-- `src/pages/Lending.tsx`
-  - Add the optional "Add to budget" block in the New/Edit Loan dialog and the Add Recovery form (Switch + destination Select).
-  - Show a small "Linked to {month} budget" or "Linked to {Other Budget name}" hint on the loan card / recovery row when a link exists.
-  - When editing a loan that already has a link, preselect the existing destination.
-
-## Out of scope
-
-- Custom category picker for lending entries (default "Lending" / "Loan Recovery" only — per user choice).
-- Backfilling links for existing loans/recoveries (they stay standalone unless edited and re-linked).
-- Reflecting recoveries from a closed loan into past months automatically.
+- Dashboard "Recent transactions" list stays as-is (always newest-first preview).
+- No sorting on Recurring, Lending, or Savings pages — you only asked for Budget + Expense views (Other Budgets included since it mirrors Budget).
+- No manual time entry field — timestamp is captured automatically at create/edit time.
