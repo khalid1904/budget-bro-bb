@@ -376,7 +376,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       const d = data as any;
       setOtherBudgetTxns(prev => [{
         id: d.id, other_budget_id: d.other_budget_id, title: d.title, amount: Number(d.amount),
-        category: d.category, type: d.type, date: d.date, goal_id: d.goal_id ?? null,
+        category: d.category, type: d.type, date: d.date, goal_id: d.goal_id ?? null, created_at: d.created_at,
       }, ...prev]);
     }
   }, [user]);
