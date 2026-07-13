@@ -206,6 +206,9 @@ export default function OtherBudgetDetailPage() {
                             <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                               <span className="text-xs text-muted-foreground">{t.category}</span>
                               <span className="text-xs text-muted-foreground">{new Date(t.date).toLocaleDateString()}</span>
+                              {formatAddedAt((t as any).created_at) && (
+                                <span className="text-[11px] text-muted-foreground/70">· added {formatAddedAt((t as any).created_at)}</span>
+                              )}
                               {t.transfer_ref_id && (
                                 <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">↔ Transfer</span>
                               )}
