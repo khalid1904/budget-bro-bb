@@ -325,7 +325,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const refreshExpenses = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase.from('expenses' as any).select('*').eq('user_id', user.id).order('date', { ascending: false });
-    if (data) setExpenses((data as any[]).map(e => ({ id: e.id, title: e.title, amount: Number(e.amount), category: e.category, date: e.date, month: e.month, budget_transaction_id: e.budget_transaction_id, notes: e.notes || '' })));
+    if (data) setExpenses((data as any[]).map(e => ({ id: e.id, title: e.title, amount: Number(e.amount), category: e.category, date: e.date, month: e.month, budget_transaction_id: e.budget_transaction_id, notes: e.notes || '', created_at: e.created_at })));
   }, [user]);
 
   const refreshOtherBudgets = useCallback(async () => {
