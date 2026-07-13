@@ -455,7 +455,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       await supabase.from('transactions').update({ transfer_ref_id: (dst as any).id } as any).eq('id', (src as any).id);
       const d: any = dst;
       setTransactions(prev => [{ ...src, amount: Number(src.amount), goal_id: null, transfer_ref_id: d.id } as any, ...prev]);
-      setOtherBudgetTxns(prev => [{ id: d.id, other_budget_id: d.other_budget_id, title: d.title, amount: Number(d.amount), category: d.category, type: d.type, date: d.date, goal_id: null, transfer_ref_id: (src as any).id }, ...prev]);
+      setOtherBudgetTxns(prev => [{ id: d.id, other_budget_id: d.other_budget_id, title: d.title, amount: Number(d.amount), category: d.category, type: d.type, date: d.date, goal_id: null, transfer_ref_id: (src as any).id, created_at: d.created_at }, ...prev]);
     }
   }, [user]);
 
