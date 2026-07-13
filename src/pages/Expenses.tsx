@@ -240,6 +240,9 @@ export default function ExpensesPage() {
                               <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">From Budget</span>
                             )}
                             {exp.date && <span className="text-xs text-muted-foreground">{new Date(exp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                            {formatAddedAt((exp as any).created_at) && (
+                              <span className="text-[11px] text-muted-foreground/70">· added {formatAddedAt((exp as any).created_at)}</span>
+                            )}
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(exp.id)}><Edit2 className="w-4 h-4" /></Button>
