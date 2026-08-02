@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useBudget } from '@/lib/budget-context';
 import { DEFAULT_OUTGOING_CATEGORIES } from '@/lib/types';
 import { getCategoryIcon } from '@/lib/category-icons';
@@ -8,11 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit2, TrendingDown, TrendingUp } from 'lucide-react';
+import { Plus, Trash2, Edit2, TrendingDown, TrendingUp, ScanLine, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Progress } from '@/components/ui/progress';
 import { sortItems, SORT_OPTIONS, SortOption, formatAddedAt } from '@/lib/sort-utils';
+import { scanBill } from '@/lib/bill-scan';
 
 function getMonthOptions() {
   const months: string[] = [];
@@ -30,7 +31,7 @@ function formatMonth(m: string) {
 }
 
 export default function ExpensesPage() {
-  const { currentMonth, setCurrentMonth, transactions, expenses, addExpense, editExpense, deleteExpense, customCategories, formatCurrency } = useBudget();
+  const { currentMonth, setCurrentMonth, transactions, expenses, addExpense, editExpense, deleteExpense, customCategories, formatCurrency, profile, settings } = useBudget();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -41,6 +42,10 @@ export default function ExpensesPage() {
   const [notes, setNotes] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [sortBy, setSortBy] = useState<SortOption>('date_desc');
+  const [scanning, setScanning] = useState(false);
+  const [scanNotice, setScanNotice] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const billScanEnabled = profile.tier === 'pro' && settings.bill_scan_enabled;
 
   const monthOptions = getMonthOptions();
   const allCategories = [...DEFAULT_OUTGOING_CATEGORIES, ...customCategories.outgoing];
@@ -77,7 +82,32 @@ export default function ExpensesPage() {
     [transactions, currentMonth]
   );
 
-  const resetForm = () => { setTitle(''); setAmount(''); setCategory(''); setDate(''); setNotes(''); setEditId(null); };
+  const resetForm = () => { setTitle(''); setAmount(''); setCategory(''); setDate(''); setNotes(''); setEditId(null); setScanNotice(null); };
+
+  const handleScanFile = async (file: File | undefined) => {
+    if (!file) return;
+    setScanning(true);
+    try {
+      const result = await scanBill(file, allCategories, settings.default_currency);
+      setEditId(null);
+      setTitle(result.title || '');
+      setAmount(result.amount > 0 ? String(result.amount) : '');
+      setDate(result.date || '');
+      setNotes(result.notes || '');
+      setCategory(allCategories.includes(result.category) ? result.category : '');
+      setScanNotice(
+        result.confidence < 0.6 || result.amount <= 0
+          ? "We couldn't read this bill clearly — please check every field before saving."
+          : 'Scanned from your bill. Review the details before saving.'
+      );
+      setDialogOpen(true);
+    } catch (err: any) {
+      toast({ title: 'Bill scan failed', description: err?.message ?? 'Please try again.', variant: 'destructive' });
+    } finally {
+      setScanning(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const handleSubmit = async () => {
     if (!title.trim() || !amount || !category) {
@@ -188,26 +218,48 @@ export default function ExpensesPage() {
             </SelectContent>
           </Select>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
-          <DialogTrigger asChild><Button><Plus className="w-4 h-4 mr-1" /> Add Expense</Button></DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle className="font-display">{editId ? 'Edit' : 'Add'} Expense</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2"><Label>Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Coffee shop" /></div>
-              <div className="space-y-2"><Label>Amount</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" min="0" step="0.01" /></div>
-              <div className="space-y-2">
-                <Label>Category</Label>
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                  <SelectContent>{allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          {billScanEnabled && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                capture="environment"
+                className="hidden"
+                onChange={e => handleScanFile(e.target.files?.[0])}
+              />
+              <Button variant="outline" disabled={scanning} onClick={() => fileInputRef.current?.click()}>
+                {scanning
+                  ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Scanning...</>
+                  : <><ScanLine className="w-4 h-4 mr-1" /> Scan Bill</>}
+              </Button>
+            </>
+          )}
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
+            <DialogTrigger asChild><Button><Plus className="w-4 h-4 mr-1" /> Add Expense</Button></DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle className="font-display">{editId ? 'Edit' : 'Add'} Expense</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                {scanNotice && (
+                  <p className="text-xs rounded-md bg-primary/10 text-primary px-3 py-2">{scanNotice}</p>
+                )}
+                <div className="space-y-2"><Label>Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Coffee shop" /></div>
+                <div className="space-y-2"><Label>Amount</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" min="0" step="0.01" /></div>
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <Select value={category} onValueChange={setCategory}>
+                    <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                    <SelectContent>{allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2"><Label>Date (optional)</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
+                <div className="space-y-2"><Label>Notes (optional)</Label><Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any details..." /></div>
+                <Button onClick={handleSubmit} className="w-full">{editId ? 'Update' : 'Add'} Expense</Button>
               </div>
-              <div className="space-y-2"><Label>Date (optional)</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
-              <div className="space-y-2"><Label>Notes (optional)</Label><Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any details..." /></div>
-              <Button onClick={handleSubmit} className="w-full">{editId ? 'Update' : 'Add'} Expense</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Card className="shadow-card">

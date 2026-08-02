@@ -451,6 +451,7 @@ export type Database = {
       }
       user_settings: {
         Row: {
+          bill_scan_enabled: boolean
           created_at: string
           cross_budget_transfers_enabled: boolean
           dark_mode: boolean
@@ -462,6 +463,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          bill_scan_enabled?: boolean
           created_at?: string
           cross_budget_transfers_enabled?: boolean
           dark_mode?: boolean
@@ -473,6 +475,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          bill_scan_enabled?: boolean
           created_at?: string
           cross_budget_transfers_enabled?: boolean
           dark_mode?: boolean
