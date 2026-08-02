@@ -189,6 +189,17 @@ export default function SettingsPage() {
               onCheckedChange={async (checked) => { await updateSettings({ lending_enabled: checked }); toast({ title: checked ? 'Lending tracker enabled' : 'Lending tracker disabled' }); }}
             />
           </div>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <Label>Bill Scan (AI)</Label>
+              <p className="text-sm text-muted-foreground mt-0.5">Scan or upload a bill and auto-fill the expense form. Needs expense tracking on.</p>
+            </div>
+            <Switch
+              disabled={!isPro || !settings.expense_tracking_enabled}
+              checked={settings.bill_scan_enabled}
+              onCheckedChange={async (checked) => { await updateSettings({ bill_scan_enabled: checked }); toast({ title: checked ? 'Bill scan enabled' : 'Bill scan disabled' }); }}
+            />
+          </div>
         </CardContent>
       </Card>
 
