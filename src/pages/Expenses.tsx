@@ -218,12 +218,33 @@ export default function ExpensesPage() {
             </SelectContent>
           </Select>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
-          <DialogTrigger asChild><Button><Plus className="w-4 h-4 mr-1" /> Add Expense</Button></DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle className="font-display">{editId ? 'Edit' : 'Add'} Expense</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2"><Label>Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Coffee shop" /></div>
+        <div className="flex flex-wrap items-center gap-2">
+          {billScanEnabled && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                capture="environment"
+                className="hidden"
+                onChange={e => handleScanFile(e.target.files?.[0])}
+              />
+              <Button variant="outline" disabled={scanning} onClick={() => fileInputRef.current?.click()}>
+                {scanning
+                  ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Scanning...</>
+                  : <><ScanLine className="w-4 h-4 mr-1" /> Scan Bill</>}
+              </Button>
+            </>
+          )}
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
+            <DialogTrigger asChild><Button><Plus className="w-4 h-4 mr-1" /> Add Expense</Button></DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle className="font-display">{editId ? 'Edit' : 'Add'} Expense</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                {scanNotice && (
+                  <p className="text-xs rounded-md bg-primary/10 text-primary px-3 py-2">{scanNotice}</p>
+                )}
+                <div className="space-y-2"><Label>Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Coffee shop" /></div>
               <div className="space-y-2"><Label>Amount</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" min="0" step="0.01" /></div>
               <div className="space-y-2">
                 <Label>Category</Label>
