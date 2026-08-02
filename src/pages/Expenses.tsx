@@ -82,7 +82,32 @@ export default function ExpensesPage() {
     [transactions, currentMonth]
   );
 
-  const resetForm = () => { setTitle(''); setAmount(''); setCategory(''); setDate(''); setNotes(''); setEditId(null); };
+  const resetForm = () => { setTitle(''); setAmount(''); setCategory(''); setDate(''); setNotes(''); setEditId(null); setScanNotice(null); };
+
+  const handleScanFile = async (file: File | undefined) => {
+    if (!file) return;
+    setScanning(true);
+    try {
+      const result = await scanBill(file, allCategories, settings.default_currency);
+      setEditId(null);
+      setTitle(result.title || '');
+      setAmount(result.amount > 0 ? String(result.amount) : '');
+      setDate(result.date || '');
+      setNotes(result.notes || '');
+      setCategory(allCategories.includes(result.category) ? result.category : '');
+      setScanNotice(
+        result.confidence < 0.6 || result.amount <= 0
+          ? "We couldn't read this bill clearly — please check every field before saving."
+          : 'Scanned from your bill. Review the details before saving.'
+      );
+      setDialogOpen(true);
+    } catch (err: any) {
+      toast({ title: 'Bill scan failed', description: err?.message ?? 'Please try again.', variant: 'destructive' });
+    } finally {
+      setScanning(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const handleSubmit = async () => {
     if (!title.trim() || !amount || !category) {
