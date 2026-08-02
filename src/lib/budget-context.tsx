@@ -25,6 +25,7 @@ interface Settings {
   expense_tracking_enabled: boolean;
   cross_budget_transfers_enabled: boolean;
   lending_enabled: boolean;
+  bill_scan_enabled: boolean;
 }
 
 export interface Loan {
