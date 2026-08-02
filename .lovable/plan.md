@@ -1,36 +1,37 @@
-## Plan: Sort options + entry timestamps on Budget & Expense views
+# Plan: Expense from Bill Scan (Pro)
 
-### What you get
+## What you get
 
-- A small **time hint** on each transaction row (e.g. `Jan 12 · 3:42 PM`) — no manual entry, uses the automatic `created_at` we already store when the entry was added/last edited.
-- A **Sort** dropdown on the Budget page (Income + Allocations tabs), Expenses page, and Other Budget detail page, with these options:
-  - Transaction date — newest first *(default, current behaviour)*
-  - Transaction date — oldest first
-  - Time added — newest first
-  - Time added — oldest first
-  - Amount — high to low
-  - Amount — low to high
-  - Title — A to Z
-  - Title — Z to A
+- A **Scan Bill** button in the Expenses page next to "Add Expense" (only when the feature toggle is on and you're on Pro).
+- Tapping it lets you **take a photo or upload a bill image/PDF**.
+- The bill is read by AI, and the **Add Expense form opens pre-filled** with merchant name (title), total amount, date, a suggested category, and notes (e.g. detected line items).
+- Nothing is saved until you review and press **Add Expense** — you can edit every field first.
+- A new toggle in Settings: **Bill Scan (AI)**, sitting alongside the existing Pro toggles.
 
-### Data model
+## Why AI, not classic OCR
 
-No schema change needed — `created_at` and `updated_at` already exist on `transactions`, `expenses`, and `other_budget_transactions`. We'll surface `created_at` as the timestamp.
+A plain OCR library returns raw text; we'd still need brittle regex to find the total, date and merchant across wildly different receipt layouts. A vision-capable AI model reads the image and returns structured fields directly, handles crumpled/rotated photos and multiple currencies, and needs no extra dependency. We'll use the built-in Lovable AI (no API key for you to manage).
 
-### Files touched (frontend only)
+## How it works
 
-- `src/lib/budget-context.tsx` — expose `created_at` on the `Transaction`, `Expense`, and `OtherBudgetTxn` types (already fetched, just need to include it).
-- `src/pages/Budget.tsx` — add Sort `Select`, apply sort to income + allocation lists, show small time hint under each entry.
-- `src/pages/Expenses.tsx` — same Sort dropdown + time hint on each expense row.
-- `src/pages/OtherBudgetDetail.tsx` — same Sort dropdown + time hint on each entry.
-- Time formatting: local `toLocaleString` with `{ month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }`, rendered in muted-foreground text-[11px] next to the transaction date.
+1. Image is selected in the browser, downscaled client-side (max ~1600px, JPEG) to keep uploads small.
+2. It's sent as base64 to a new backend function `scan-bill`.
+3. The function calls Lovable AI (`openai/gpt-5.6-sol`) with the image and a strict JSON schema: `{ title, amount, date, category, notes, currency, confidence }`, constraining `category` to the user's available expense categories (passed from the client).
+4. The response is validated (Zod) and returned; the client opens the existing expense dialog pre-filled, with a small "Review the scanned details" hint and a low-confidence warning when applicable.
+5. Errors are surfaced clearly: 429 → "Too many scans, try again in a moment", 402 → credits exhausted message, unreadable bill → "Couldn't read this bill, enter it manually".
 
-### Persistence
+## Technical details
 
-Sort choice is kept in component state per page (resets on reload). No settings row needed — happy to persist to `user_settings` later if you want.
+- **DB migration**: add `bill_scan_enabled boolean not null default false` to `user_settings`.
+- **New edge function**: `supabase/functions/scan-bill/index.ts` — JWT validated in code, CORS headers, Zod input validation (base64 data URL + mime allowlist: jpeg/png/webp/pdf, size cap ~5MB), structured output via the AI gateway.
+- **`src/lib/budget-context.tsx`**: add `bill_scan_enabled` to the `Settings` type, defaults, and fetch mapping.
+- **`src/pages/Settings.tsx`**: add the "Bill Scan (AI)" toggle in the Pro features card (shown only when expense tracking is on, since it feeds the Expenses module).
+- **`src/pages/Expenses.tsx`**: add the Scan Bill button, hidden file input with `capture="environment"` for mobile camera, client-side image resize helper, loading state, and pre-fill of the existing dialog state.
+- **New `src/lib/bill-scan.ts`**: image downscale + `scanBill()` invoke helper.
+- No storage bucket — the image is used transiently and not persisted (can add receipt storage later if you want it).
 
-### Out of scope
+## Out of scope
 
-- Dashboard "Recent transactions" list stays as-is (always newest-first preview).
-- No sorting on Recurring, Lending, or Savings pages — you only asked for Budget + Expense views (Other Budgets included since it mirrors Budget).
-- No manual time entry field — timestamp is captured automatically at create/edit time.
+- Storing/attaching the bill image to the expense record.
+- Multi-expense splitting from one bill (single total per scan).
+- Bill scan for Budget or Other Budgets entries — Expenses only, as asked.
