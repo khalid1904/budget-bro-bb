@@ -31,7 +31,7 @@ function formatMonth(m: string) {
 }
 
 export default function ExpensesPage() {
-  const { currentMonth, setCurrentMonth, transactions, expenses, addExpense, editExpense, deleteExpense, customCategories, formatCurrency } = useBudget();
+  const { currentMonth, setCurrentMonth, transactions, expenses, addExpense, editExpense, deleteExpense, customCategories, formatCurrency, profile, settings } = useBudget();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -42,6 +42,10 @@ export default function ExpensesPage() {
   const [notes, setNotes] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [sortBy, setSortBy] = useState<SortOption>('date_desc');
+  const [scanning, setScanning] = useState(false);
+  const [scanNotice, setScanNotice] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const billScanEnabled = profile.tier === 'pro' && settings.bill_scan_enabled;
 
   const monthOptions = getMonthOptions();
   const allCategories = [...DEFAULT_OUTGOING_CATEGORIES, ...customCategories.outgoing];
