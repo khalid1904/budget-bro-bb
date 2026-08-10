@@ -1,4 +1,4 @@
-const CACHE_NAME = 'budget-bro-v2';
+const CACHE_NAME = 'budget-bro-v3';
 const SHARE_CACHE = 'budget-bro-share';
 const SHARE_KEY = '/__shared-receipt';
 const STATIC_ASSETS = [
