@@ -111,6 +111,37 @@ export default function ExpensesPage() {
     }
   };
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sharedHandled = useRef(false);
+
+  useEffect(() => {
+    const shared = searchParams.get('shared');
+    if (!shared || sharedHandled.current) return;
+    sharedHandled.current = true;
+    const next = new URLSearchParams(searchParams);
+    next.delete('shared');
+    setSearchParams(next, { replace: true });
+
+    (async () => {
+      if (shared === 'error') {
+        toast({ title: 'Could not read the shared receipt', description: 'Please try the Scan Bill button instead.', variant: 'destructive' });
+        return;
+      }
+      const file = await takeSharedReceipt();
+      if (!file) return;
+      if (!billScanEnabled) {
+        toast({
+          title: 'Bill Scan is off',
+          description: 'Enable Settings → Pro Features → Bill Scan (AI) to scan shared receipts.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      await handleScanFile(file);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, billScanEnabled]);
+
   const handleSubmit = async () => {
     if (!title.trim() || !amount || !category) {
       toast({ title: 'Please fill required fields', variant: 'destructive' }); return;
