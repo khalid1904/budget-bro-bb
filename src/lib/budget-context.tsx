@@ -204,6 +204,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile>({ username: '', email: '', bio: '', avatar: '🦸', tier: 'free' });
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [settings, setSettings] = useState<Settings>({ default_currency: 'INR', dark_mode: false, expense_tracking_enabled: false, cross_budget_transfers_enabled: false, lending_enabled: false, bill_scan_enabled: false });
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loanRecoveries, setLoanRecoveries] = useState<LoanRecovery[]>([]);
