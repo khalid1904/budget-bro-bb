@@ -113,6 +113,8 @@ interface BudgetContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  profileLoaded: boolean;
+  settingsLoaded: boolean;
   profile: Profile;
   settings: Settings;
   transactions: Transaction[];
