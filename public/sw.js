@@ -1,4 +1,4 @@
-const CACHE_NAME = 'budget-bro-v2';
+const CACHE_NAME = 'budget-bro-v3';
 const SHARE_CACHE = 'budget-bro-share';
 const SHARE_KEY = '/__shared-receipt';
 const STATIC_ASSETS = [
@@ -28,10 +28,23 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+function redirectTo(path) {
+  return new Response('', {
+    status: 303,
+    headers: { Location: new URL(path, self.location.origin).href }
+  });
+}
+
 async function handleShare(request) {
   try {
     const formData = await request.formData();
-    const file = formData.get('receipt');
+    let file = formData.get('receipt');
+    if (!file || typeof file === 'string') {
+      // Some apps use a different field name — take the first file we find.
+      for (const value of formData.values()) {
+        if (value && typeof value !== 'string') { file = value; break; }
+      }
+    }
     if (file && typeof file !== 'string') {
       const cache = await caches.open(SHARE_CACHE);
       await cache.put(
@@ -43,18 +56,22 @@ async function handleShare(request) {
           }
         })
       );
-      return Response.redirect('/expenses?shared=1', 303);
+      return redirectTo('/expenses?shared=1');
     }
   } catch (e) {
     // fall through
   }
-  return Response.redirect('/expenses?shared=error', 303);
+  return redirectTo('/expenses?shared=error');
 }
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  if (event.request.method === 'POST' && url.pathname === '/share-target') {
-    event.respondWith(handleShare(event.request));
+  if (url.pathname === '/share-target') {
+    if (event.request.method === 'POST') {
+      event.respondWith(handleShare(event.request));
+      return;
+    }
+    event.respondWith(redirectTo('/expenses?shared=1'));
     return;
   }
   if (event.request.method !== 'GET') return;

@@ -38,7 +38,8 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 function TierRoute({ children }: { children: React.ReactNode }) {
-  const { profile } = useBudget();
+  const { profile, profileLoaded } = useBudget();
+  if (!profileLoaded) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted-foreground">Loading...</div></div>;
   if (profile.tier !== 'pro') return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
@@ -52,6 +53,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
+            <Route path="/share-target" element={<Navigate to="/expenses?shared=1" replace />} />
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
             <Route element={<ProtectedRoute><RecurringProvider><AppLayout /></RecurringProvider></ProtectedRoute>}>

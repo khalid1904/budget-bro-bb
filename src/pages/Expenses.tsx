@@ -113,10 +113,11 @@ export default function ExpensesPage() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const sharedHandled = useRef(false);
+  const { settingsLoaded } = useBudget();
 
   useEffect(() => {
     const shared = searchParams.get('shared');
-    if (!shared || sharedHandled.current) return;
+    if (!shared || sharedHandled.current || !settingsLoaded) return;
     sharedHandled.current = true;
     const next = new URLSearchParams(searchParams);
     next.delete('shared');
@@ -128,7 +129,10 @@ export default function ExpensesPage() {
         return;
       }
       const file = await takeSharedReceipt();
-      if (!file) return;
+      if (!file) {
+        toast({ title: 'No receipt received', description: 'Use the Scan Bill button to upload it manually.' });
+        return;
+      }
       if (!billScanEnabled) {
         toast({
           title: 'Bill Scan is off',
@@ -140,7 +144,7 @@ export default function ExpensesPage() {
       await handleScanFile(file);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, billScanEnabled]);
+  }, [searchParams, billScanEnabled, settingsLoaded]);
 
   const handleSubmit = async () => {
     if (!title.trim() || !amount || !category) {

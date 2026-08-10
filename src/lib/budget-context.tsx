@@ -113,6 +113,8 @@ interface BudgetContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  profileLoaded: boolean;
+  settingsLoaded: boolean;
   profile: Profile;
   settings: Settings;
   transactions: Transaction[];
@@ -204,6 +206,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile>({ username: '', email: '', bio: '', avatar: '🦸', tier: 'free' });
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [settings, setSettings] = useState<Settings>({ default_currency: 'INR', dark_mode: false, expense_tracking_enabled: false, cross_budget_transfers_enabled: false, lending_enabled: false, bill_scan_enabled: false });
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loanRecoveries, setLoanRecoveries] = useState<LoanRecovery[]>([]);
@@ -263,6 +266,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const { data } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
     if (data) setProfile({ username: data.username, email: data.email, bio: data.bio, avatar: data.avatar, tier: (data as any).tier || 'free' });
+    setProfileLoaded(true);
   }, [user]);
 
   const [initialSettingsLoaded, setInitialSettingsLoaded] = useState(false);
@@ -774,7 +778,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <BudgetContext.Provider value={{
-      user, session, loading, profile, settings, transactions, customCategories, customCategoryRecords,
+      user, session, loading, profileLoaded, settingsLoaded: initialSettingsLoaded, profile, settings, transactions, customCategories, customCategoryRecords,
       currentMonth, setCurrentMonth, refreshProfile, refreshSettings, refreshTransactions, refreshCategories,
       updateProfile, updateSettings, addTransaction, editTransaction, deleteTransaction,
       addCategory, editCategory, deleteCategory, signOut, isDark, toggleDark, theme, setTheme, formatCurrency,
