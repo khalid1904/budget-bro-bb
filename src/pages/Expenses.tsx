@@ -1,4 +1,6 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { takeSharedReceipt } from '@/lib/share-target';
 import { useBudget } from '@/lib/budget-context';
 import { DEFAULT_OUTGOING_CATEGORIES } from '@/lib/types';
 import { getCategoryIcon } from '@/lib/category-icons';
