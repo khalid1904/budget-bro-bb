@@ -177,17 +177,37 @@ export default function ExpensesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Expenses</h1>
           <p className="text-muted-foreground mt-1">Track actual spending vs budget</p>
         </div>
-        <Select value={currentMonth} onValueChange={setCurrentMonth}>
-          <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {monthOptions.map(m => <SelectItem key={m} value={m}>{formatMonth(m)}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="inline-flex items-center bg-muted rounded-lg p-1 border border-border">
+            <Button
+              variant={view === 'list' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="rounded-md gap-1.5"
+              onClick={() => setView('list')}
+            >
+              <List className="w-4 h-4" /> Expense List
+            </Button>
+            <Button
+              variant={view === 'budget' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="rounded-md gap-1.5"
+              onClick={() => setView('budget')}
+            >
+              <BarChart3 className="w-4 h-4" /> Budget vs Actual
+            </Button>
+          </div>
+          <Select value={currentMonth} onValueChange={setCurrentMonth}>
+            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {monthOptions.map(m => <SelectItem key={m} value={m}>{formatMonth(m)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Budget vs Actual Summary */}
