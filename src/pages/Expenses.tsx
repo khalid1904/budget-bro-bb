@@ -46,6 +46,7 @@ export default function ExpensesPage() {
   const [sortBy, setSortBy] = useState<SortOption>('date_desc');
   const [scanning, setScanning] = useState(false);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
+  const [view, setView] = useState<'list' | 'budget'>('list');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const billScanEnabled = profile.tier === 'pro' && settings.bill_scan_enabled;
 
