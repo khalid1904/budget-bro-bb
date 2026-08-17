@@ -210,54 +210,55 @@ export default function ExpensesPage() {
         </div>
       </div>
 
-      {/* Budget vs Actual Summary */}
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle className="font-display text-lg">Budget vs Actual</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Budgeted</p>
-              <p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalBudgeted)}</p>
+      {view === 'budget' && (
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="font-display text-lg">Budget vs Actual</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Budgeted</p>
+                <p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalBudgeted)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Total Spent</p>
+                <p className="text-lg font-display font-bold text-destructive">{formatCurrency(totalExpenses)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Remaining</p>
+                <p className={`text-lg font-display font-bold ${totalBudgeted - totalExpenses >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {formatCurrency(totalBudgeted - totalExpenses)}
+                </p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Total Spent</p>
-              <p className="text-lg font-display font-bold text-destructive">{formatCurrency(totalExpenses)}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Remaining</p>
-              <p className={`text-lg font-display font-bold ${totalBudgeted - totalExpenses >= 0 ? 'text-success' : 'text-destructive'}`}>
-                {formatCurrency(totalBudgeted - totalExpenses)}
-              </p>
-            </div>
-          </div>
-          {budgetVsActual.length > 0 ? (
-            <div className="space-y-3">
-              {budgetVsActual.map(row => {
-                const pct = row.budgeted > 0 ? Math.min((row.actual / row.budgeted) * 100, 100) : 100;
-                const overBudget = row.actual > row.budgeted && row.budgeted > 0;
-                return (
-                  <div key={row.category} className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-foreground">{row.category}</span>
-                      <span className="text-muted-foreground">
-                        {formatCurrency(row.actual)} / {formatCurrency(row.budgeted)}
-                      </span>
+            {budgetVsActual.length > 0 ? (
+              <div className="space-y-3">
+                {budgetVsActual.map(row => {
+                  const pct = row.budgeted > 0 ? Math.min((row.actual / row.budgeted) * 100, 100) : 100;
+                  const overBudget = row.actual > row.budgeted && row.budgeted > 0;
+                  return (
+                    <div key={row.category} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium text-foreground">{row.category}</span>
+                        <span className="text-muted-foreground">
+                          {formatCurrency(row.actual)} / {formatCurrency(row.budgeted)}
+                        </span>
+                      </div>
+                      <Progress value={pct} className={`h-2 ${overBudget ? '[&>div]:bg-destructive' : ''}`} />
+                      {overBudget && (
+                        <p className="text-xs text-destructive">Over budget by {formatCurrency(row.actual - row.budgeted)}</p>
+                      )}
                     </div>
-                    <Progress value={pct} className={`h-2 ${overBudget ? '[&>div]:bg-destructive' : ''}`} />
-                    {overBudget && (
-                      <p className="text-xs text-destructive">Over budget by {formatCurrency(row.actual - row.budgeted)}</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">No budget or expense data for this month</p>
-          )}
-        </CardContent>
-      </Card>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">No budget or expense data for this month</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Expense List */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
