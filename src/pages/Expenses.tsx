@@ -260,120 +260,124 @@ export default function ExpensesPage() {
         </Card>
       )}
 
-      {/* Expense List */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="w-[140px] sm:w-[160px]"><SelectValue placeholder="Filter" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-            <SelectTrigger className="w-[160px] sm:w-[190px]"><SelectValue placeholder="Sort by" /></SelectTrigger>
-            <SelectContent>
-              {SORT_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {billScanEnabled && (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,application/pdf"
-                capture="environment"
-                className="hidden"
-                onChange={e => handleScanFile(e.target.files?.[0])}
-              />
-              <Button variant="outline" disabled={scanning} onClick={() => fileInputRef.current?.click()}>
-                {scanning
-                  ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Scanning...</>
-                  : <><ScanLine className="w-4 h-4 mr-1" /> Scan Bill</>}
-              </Button>
-            </>
-          )}
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
-            <DialogTrigger asChild><Button><Plus className="w-4 h-4 mr-1" /> Add Expense</Button></DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle className="font-display">{editId ? 'Edit' : 'Add'} Expense</DialogTitle></DialogHeader>
-              <div className="space-y-4">
-                {scanNotice && (
-                  <p className="text-xs rounded-md bg-primary/10 text-primary px-3 py-2">{scanNotice}</p>
-                )}
-                <div className="space-y-2"><Label>Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Coffee shop" /></div>
-                <div className="space-y-2"><Label>Amount</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" min="0" step="0.01" /></div>
-                <div className="space-y-2">
-                  <Label>Category</Label>
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                    <SelectContent>{allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2"><Label>Date (optional)</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Notes (optional)</Label><Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any details..." /></div>
-                <Button onClick={handleSubmit} className="w-full">{editId ? 'Update' : 'Add'} Expense</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+      {view === 'list' && (
+        <>
+          {/* Expense List */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="w-[140px] sm:w-[160px]"><SelectValue placeholder="Filter" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                <SelectTrigger className="w-[160px] sm:w-[190px]"><SelectValue placeholder="Sort by" /></SelectTrigger>
+                <SelectContent>
+                  {SORT_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {billScanEnabled && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    capture="environment"
+                    className="hidden"
+                    onChange={e => handleScanFile(e.target.files?.[0])}
+                  />
+                  <Button variant="outline" disabled={scanning} onClick={() => fileInputRef.current?.click()}>
+                    {scanning
+                      ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Scanning...</>
+                      : <><ScanLine className="w-4 h-4 mr-1" /> Scan Bill</>}
+                  </Button>
+                </>
+              )}
+              <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
+                <DialogTrigger asChild><Button><Plus className="w-4 h-4 mr-1" /> Add Expense</Button></DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle className="font-display">{editId ? 'Edit' : 'Add'} Expense</DialogTitle></DialogHeader>
+                  <div className="space-y-4">
+                    {scanNotice && (
+                      <p className="text-xs rounded-md bg-primary/10 text-primary px-3 py-2">{scanNotice}</p>
+                    )}
+                    <div className="space-y-2"><Label>Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Coffee shop" /></div>
+                    <div className="space-y-2"><Label>Amount</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" min="0" step="0.01" /></div>
+                    <div className="space-y-2">
+                      <Label>Category</Label>
+                      <Select value={category} onValueChange={setCategory}>
+                        <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                        <SelectContent>{allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2"><Label>Date (optional)</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Notes (optional)</Label><Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any details..." /></div>
+                    <Button onClick={handleSubmit} className="w-full">{editId ? 'Update' : 'Add'} Expense</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
 
-      <Card className="shadow-card">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="font-display text-lg">Expense Entries</CardTitle>
-          <span className="text-lg font-display font-bold text-destructive">{formatCurrency(totalExpenses)}</span>
-        </CardHeader>
-        <CardContent>
-          {monthExpenses.length > 0 ? (
-            <div className="space-y-2">
-              <AnimatePresence>
-                {monthExpenses.map(exp => {
-                  const catIcon = getCategoryIcon(exp.category);
-                  const IconComp = catIcon.icon;
-                  return (
-                    <motion.div key={exp.id} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                      className="flex items-start gap-3 py-3 border-b border-border last:border-0">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: catIcon.bg }}>
-                        <IconComp className="w-5 h-5" style={{ color: catIcon.fg }} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="font-medium text-foreground break-words min-w-0 flex-1">{exp.title}</p>
-                          <span className="font-display font-semibold whitespace-nowrap text-destructive">{formatCurrency(exp.amount)}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2 mt-1">
-                          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                            <span className="text-xs text-muted-foreground">{exp.category}</span>
-                            {exp.budget_transaction_id && (
-                              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">From Budget</span>
-                            )}
-                            {exp.date && <span className="text-xs text-muted-foreground">{new Date(exp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
-                            {formatAddedAt((exp as any).created_at) && (
-                              <span className="text-[11px] text-muted-foreground/70">· added {formatAddedAt((exp as any).created_at)}</span>
-                            )}
+          <Card className="shadow-card">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="font-display text-lg">Expense Entries</CardTitle>
+              <span className="text-lg font-display font-bold text-destructive">{formatCurrency(totalExpenses)}</span>
+            </CardHeader>
+            <CardContent>
+              {monthExpenses.length > 0 ? (
+                <div className="space-y-2">
+                  <AnimatePresence>
+                    {monthExpenses.map(exp => {
+                      const catIcon = getCategoryIcon(exp.category);
+                      const IconComp = catIcon.icon;
+                      return (
+                        <motion.div key={exp.id} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                          className="flex items-start gap-3 py-3 border-b border-border last:border-0">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: catIcon.bg }}>
+                            <IconComp className="w-5 h-5" style={{ color: catIcon.fg }} />
                           </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(exp.id)}><Edit2 className="w-4 h-4" /></Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={async () => { await deleteExpense(exp.id); toast({ title: 'Expense deleted' }); }}><Trash2 className="w-4 h-4" /></Button>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="font-medium text-foreground break-words min-w-0 flex-1">{exp.title}</p>
+                              <span className="font-display font-semibold whitespace-nowrap text-destructive">{formatCurrency(exp.amount)}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 mt-1">
+                              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                                <span className="text-xs text-muted-foreground">{exp.category}</span>
+                                {exp.budget_transaction_id && (
+                                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">From Budget</span>
+                                )}
+                                {exp.date && <span className="text-xs text-muted-foreground">{new Date(exp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                                {formatAddedAt((exp as any).created_at) && (
+                                  <span className="text-[11px] text-muted-foreground/70">· added {formatAddedAt((exp as any).created_at)}</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(exp.id)}><Edit2 className="w-4 h-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={async () => { await deleteExpense(exp.id); toast({ title: 'Expense deleted' }); }}><Trash2 className="w-4 h-4" /></Button>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-            </div>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <p>No expenses recorded yet</p>
-              <p className="text-sm mt-1">Click "Add Expense" to start tracking</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p>No expenses recorded yet</p>
+                  <p className="text-sm mt-1">Click "Add Expense" to start tracking</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }
