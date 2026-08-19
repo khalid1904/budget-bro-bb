@@ -43,7 +43,7 @@ export default function ExpensesPage() {
   const [date, setDate] = useState('');
   const [notes, setNotes] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
-  const [sortBy, setSortBy] = useState<SortOption>('date_desc');
+  const [sortBy, setSortBy] = useState<SortOption>('added_desc');
   const [scanning, setScanning] = useState(false);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'budget'>('list');
