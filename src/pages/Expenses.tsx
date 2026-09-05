@@ -10,7 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit2, ScanLine, Loader2, List, BarChart3 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Plus, Trash2, Edit2, ScanLine, Loader2, List, BarChart3, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Progress } from '@/components/ui/progress';
@@ -358,6 +360,25 @@ export default function ExpensesPage() {
                                 )}
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
+                                {exp.notes && (
+                                  <Popover>
+                                    <Tooltip>
+                                      <PopoverTrigger asChild>
+                                        <TooltipTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                                            <Info className="w-4 h-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                      </PopoverTrigger>
+                                      <TooltipContent side="top" className="max-w-xs">
+                                        <p className="whitespace-pre-wrap">{exp.notes}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                    <PopoverContent className="w-64">
+                                      <p className="text-sm text-foreground whitespace-pre-wrap">{exp.notes}</p>
+                                    </PopoverContent>
+                                  </Popover>
+                                )}
                                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(exp.id)}><Edit2 className="w-4 h-4" /></Button>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={async () => { await deleteExpense(exp.id); toast({ title: 'Expense deleted' }); }}><Trash2 className="w-4 h-4" /></Button>
                               </div>
