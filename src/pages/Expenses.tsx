@@ -361,23 +361,23 @@ export default function ExpensesPage() {
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
                                 {exp.notes && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Popover>
-                                        <PopoverTrigger asChild>
+                                  <Popover>
+                                    <Tooltip>
+                                      <PopoverTrigger asChild>
+                                        <TooltipTrigger asChild>
                                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
                                             <Info className="w-4 h-4" />
                                           </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-64">
-                                          <p className="text-sm text-foreground whitespace-pre-wrap">{exp.notes}</p>
-                                        </PopoverContent>
-                                      </Popover>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" className="max-w-xs">
-                                      <p className="whitespace-pre-wrap">{exp.notes}</p>
-                                    </TooltipContent>
-                                  </Tooltip>
+                                        </TooltipTrigger>
+                                      </PopoverTrigger>
+                                      <TooltipContent side="top" className="max-w-xs">
+                                        <p className="whitespace-pre-wrap">{exp.notes}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                    <PopoverContent className="w-64">
+                                      <p className="text-sm text-foreground whitespace-pre-wrap">{exp.notes}</p>
+                                    </PopoverContent>
+                                  </Popover>
                                 )}
                                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(exp.id)}><Edit2 className="w-4 h-4" /></Button>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={async () => { await deleteExpense(exp.id); toast({ title: 'Expense deleted' }); }}><Trash2 className="w-4 h-4" /></Button>
