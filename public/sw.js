@@ -1,4 +1,4 @@
-const CACHE_NAME = 'budget-bro-v3';
+const CACHE_NAME = 'budget-bro-v4';
 const SHARE_CACHE = 'budget-bro-share';
 const SHARE_KEY = '/__shared-receipt';
 const STATIC_ASSETS = [
@@ -38,21 +38,25 @@ function redirectTo(path) {
 async function handleShare(request) {
   try {
     const formData = await request.formData();
-    let file = formData.get('receipt');
-    if (!file || typeof file === 'string') {
-      // Some apps use a different field name — take the first file we find.
-      for (const value of formData.values()) {
-        if (value && typeof value !== 'string') { file = value; break; }
-      }
-    }
+    const candidates = [
+      ...formData.getAll('receipt'),
+      ...formData.getAll('file'),
+      ...formData.getAll('files'),
+      ...Array.from(formData.values()),
+    ];
+    const file = candidates.find((value) => value && typeof value !== 'string');
+
     if (file && typeof file !== 'string') {
+      const body = await file.arrayBuffer();
+      const type = file.type || 'image/jpeg';
+      const name = (file.name || 'receipt.jpg').replace(/[^\w.\-]/g, '_');
       const cache = await caches.open(SHARE_CACHE);
       await cache.put(
         SHARE_KEY,
-        new Response(file, {
+        new Response(body, {
           headers: {
-            'content-type': file.type || 'image/jpeg',
-            'x-file-name': (file.name || 'receipt').replace(/[^\w.\-]/g, '_')
+            'content-type': type,
+            'x-file-name': name,
           }
         })
       );
