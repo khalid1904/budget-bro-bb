@@ -14,7 +14,8 @@ const MAX_DIMENSION = 1600;
 
 /** Downscale an image file to keep the upload small. PDFs pass through untouched. */
 export async function prepareBillFile(file: File): Promise<{ data: string; mimeType: string }> {
-  if (file.type === 'application/pdf') {
+  const mimeType = file.type || inferMimeType(file.name);
+  if (mimeType === 'application/pdf') {
     return { data: await fileToBase64(file), mimeType: 'application/pdf' };
   }
 
@@ -31,8 +32,16 @@ export async function prepareBillFile(file: File): Promise<{ data: string; mimeT
     const out = canvas.toDataURL('image/jpeg', 0.85);
     return { data: out.split(',')[1], mimeType: 'image/jpeg' };
   } catch {
-    return { data: dataUrl.split(',')[1], mimeType: file.type || 'image/jpeg' };
+    return { data: dataUrl.split(',')[1], mimeType };
   }
+}
+
+function inferMimeType(name: string) {
+  const lowerName = name.toLowerCase();
+  if (lowerName.endsWith('.pdf')) return 'application/pdf';
+  if (lowerName.endsWith('.png')) return 'image/png';
+  if (lowerName.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
 }
 
 function fileToDataUrl(file: File): Promise<string> {
