@@ -287,7 +287,7 @@ export default function ExpensesPage() {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*,application/pdf"
+                    accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
                     capture="environment"
                     className="hidden"
                     onChange={e => handleScanFile(e.target.files?.[0])}
