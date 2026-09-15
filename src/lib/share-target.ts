@@ -11,10 +11,19 @@ export async function takeSharedReceipt(): Promise<File | null> {
     const blob = await res.blob();
     await cache.delete(SHARE_KEY);
     if (!blob.size) return null;
-    const type = res.headers.get('content-type') || blob.type || 'image/jpeg';
-    const name = res.headers.get('x-file-name') || (type === 'application/pdf' ? 'receipt.pdf' : 'receipt.jpg');
+    const storedType = res.headers.get('content-type') || blob.type;
+    const name = res.headers.get('x-file-name') || (storedType === 'application/pdf' ? 'receipt.pdf' : 'receipt.jpg');
+    const type = storedType && storedType !== 'application/octet-stream' ? storedType : inferReceiptType(name);
     return new File([blob], name, { type });
   } catch {
     return null;
   }
+}
+
+function inferReceiptType(name: string) {
+  const lowerName = name.toLowerCase();
+  if (lowerName.endsWith('.pdf')) return 'application/pdf';
+  if (lowerName.endsWith('.png')) return 'image/png';
+  if (lowerName.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
 }
