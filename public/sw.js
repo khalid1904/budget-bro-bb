@@ -1,4 +1,4 @@
-const CACHE_NAME = 'budget-bro-v4';
+const CACHE_NAME = 'budget-bro-v5';
 const SHARE_CACHE = 'budget-bro-share';
 const SHARE_KEY = '/__shared-receipt';
 const STATIC_ASSETS = [
@@ -37,20 +37,36 @@ function redirectTo(path) {
 
 async function handleShare(request) {
   try {
-    const formData = await request.formData();
+    const formData = await request.clone().formData();
     const candidates = [
       ...formData.getAll('receipt'),
       ...formData.getAll('file'),
       ...formData.getAll('files'),
       ...Array.from(formData.values()),
     ];
-    const file = candidates.find((value) => value && typeof value !== 'string');
+    const file = candidates.find(
+      (value) => value && typeof value !== 'string' && typeof value.size === 'number' && value.size > 0
+    );
 
     if (file && typeof file !== 'string') {
-      const body = await file.arrayBuffer();
-      const type = file.type || 'image/jpeg';
       const name = (file.name || 'receipt.jpg').replace(/[^\w.\-]/g, '_');
+      const lowerName = name.toLowerCase();
+      const declaredType = String(file.type || '').toLowerCase();
+      const type = declaredType === 'application/pdf' || declaredType.startsWith('image/')
+        ? declaredType
+        : lowerName.endsWith('.pdf')
+          ? 'application/pdf'
+          : lowerName.endsWith('.png')
+            ? 'image/png'
+            : lowerName.endsWith('.webp')
+              ? 'image/webp'
+              : 'image/jpeg';
+      const body = typeof file.arrayBuffer === 'function'
+        ? await file.arrayBuffer()
+        : await new Response(file).arrayBuffer();
+      if (!body.byteLength) return redirectTo('/expenses?shared=error');
       const cache = await caches.open(SHARE_CACHE);
+      await cache.delete(SHARE_KEY);
       await cache.put(
         SHARE_KEY,
         new Response(body, {
@@ -62,7 +78,7 @@ async function handleShare(request) {
       );
       return redirectTo('/expenses?shared=1');
     }
-  } catch (e) {
+  } catch {
     // fall through
   }
   return redirectTo('/expenses?shared=error');
