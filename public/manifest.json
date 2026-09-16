@@ -16,7 +16,7 @@
       "files": [
         {
           "name": "receipt",
-          "accept": ["image/*", "application/pdf"]
+          "accept": ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/*", "application/pdf"]
         }
       ]
     }
