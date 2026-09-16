@@ -41,6 +41,7 @@ function inferMimeType(name: string) {
   if (lowerName.endsWith('.pdf')) return 'application/pdf';
   if (lowerName.endsWith('.png')) return 'image/png';
   if (lowerName.endsWith('.webp')) return 'image/webp';
+  if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg')) return 'image/jpeg';
   return 'image/jpeg';
 }
 
