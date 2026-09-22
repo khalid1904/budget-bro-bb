@@ -127,8 +127,9 @@ export default function ExpensesPage() {
     setSearchParams(next, { replace: true });
 
     (async () => {
-      if (shared === 'error') {
-        toast({ title: 'Could not read the shared receipt', description: 'Please try the Scan Bill button instead.', variant: 'destructive' });
+      if (shared === 'error' || shared === 'raw-error' || shared === 'no-file') {
+        const detail = shared === 'no-file' ? 'No image was included by the sharing app.' : 'Android could not decode the shared image.';
+        toast({ title: 'Could not read the shared receipt', description: `${detail} Please try the Scan Bill button instead.`, variant: 'destructive' });
         return;
       }
       const file = await takeSharedReceipt();
