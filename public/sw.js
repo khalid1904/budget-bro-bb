@@ -43,6 +43,7 @@ async function readRawMultipart(request) {
   const headerEndMarker = encoder.encode('\r\n\r\n');
   const boundaryMarker = encoder.encode(`\r\n--${boundary}`);
   let cursor = 0;
+  let firstNamedPart = null;
 
   while (cursor < bytes.length) {
     const headerEnd = findBytes(bytes, headerEndMarker, cursor);
@@ -52,18 +53,57 @@ async function readRawMultipart(request) {
     const bodyEnd = findBytes(bytes, boundaryMarker, bodyStart);
     if (bodyEnd < 0) break;
     const filenameMatch = headers.match(/filename\*?=(?:UTF-8''|"?)([^";\r\n]+)/i);
+    const fieldNameMatch = headers.match(/name="?([^";\r\n]+)"?/i);
     const typeMatch = headers.match(/content-type:\s*([^\r\n]+)/i);
     const body = bytes.slice(bodyStart, bodyEnd);
-    if (filenameMatch && body.byteLength > 0) {
-      return {
+    const type = typeMatch ? typeMatch[1].trim() : 'application/octet-stream';
+    const fieldName = fieldNameMatch ? fieldNameMatch[1] : '';
+    const isReceiptPart = fieldName === 'receipt' || fieldName === 'file' || fieldName === 'files';
+    const isSupportedFile = type.startsWith('image/') || type === 'application/pdf';
+
+    if (body.byteLength > 0 && (filenameMatch || isSupportedFile || isReceiptPart)) {
+      let decodedName = '';
+      if (filenameMatch) {
+        try {
+          decodedName = decodeURIComponent(filenameMatch[1].replace(/^"|"$/g, ''));
+        } catch {
+          decodedName = filenameMatch[1].replace(/^"|"$/g, '');
+        }
+      }
+      const part = {
         body,
-        name: decodeURIComponent(filenameMatch[1].replace(/^"|"$/g, '')),
-        type: typeMatch ? typeMatch[1].trim() : 'application/octet-stream',
+        name: decodedName || defaultNameForType(type),
+        type,
       };
+      if (isSupportedFile || filenameMatch) return part;
+      if (!firstNamedPart) firstNamedPart = part;
     }
     cursor = bodyEnd + boundaryMarker.length;
   }
-  return null;
+  return firstNamedPart;
+}
+
+function defaultNameForType(type) {
+  if (type === 'application/pdf') return 'receipt.pdf';
+  if (type === 'image/png') return 'receipt.png';
+  if (type === 'image/webp') return 'receipt.webp';
+  return 'receipt.jpg';
+}
+
+async function storeSharedFile(body, rawName, rawType) {
+  const type = rawType || 'application/octet-stream';
+  const name = (rawName || defaultNameForType(type)).replace(/[^\w.\-]/g, '_');
+  const cache = await caches.open(SHARE_CACHE);
+  await cache.delete(SHARE_KEY);
+  await cache.put(
+    SHARE_KEY,
+    new Response(body, {
+      headers: {
+        'content-type': type,
+        'x-file-name': name,
+      },
+    })
+  );
 }
 
 async function handleShare(request) {
@@ -81,18 +121,7 @@ async function handleShare(request) {
     );
 
     if (file && typeof file !== 'string') {
-      const name = (file.name || 'receipt.jpg').replace(/[^\w.\-]/g, '_');
-      const cache = await caches.open(SHARE_CACHE);
-      await cache.delete(SHARE_KEY);
-      await cache.put(
-        SHARE_KEY,
-        new Response(file, {
-          headers: {
-            'content-type': file.type || 'application/octet-stream',
-            'x-file-name': name,
-          }
-        })
-      );
+      await storeSharedFile(file, file.name, file.type);
       return redirectTo('/expenses?shared=1');
     }
   } catch {
@@ -102,18 +131,7 @@ async function handleShare(request) {
   try {
     const rawFile = await readRawMultipart(rawRequest);
     if (rawFile) {
-      const name = (rawFile.name || 'receipt.jpg').replace(/[^\w.\-]/g, '_');
-      const cache = await caches.open(SHARE_CACHE);
-      await cache.delete(SHARE_KEY);
-      await cache.put(
-        SHARE_KEY,
-        new Response(rawFile.body, {
-          headers: {
-            'content-type': rawFile.type,
-            'x-file-name': name,
-          },
-        })
-      );
+      await storeSharedFile(rawFile.body, rawFile.name, rawFile.type);
       return redirectTo('/expenses?shared=1');
     }
   } catch {
@@ -124,7 +142,7 @@ async function handleShare(request) {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  if (url.pathname === '/share-target') {
+  if (url.pathname === '/share-target' || url.pathname === '/share-target-v2') {
     if (event.request.method === 'POST') {
       event.respondWith(handleShare(event.request));
       return;
