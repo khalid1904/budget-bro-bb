@@ -6,10 +6,13 @@ const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'
 const MAX_BYTES = 5 * 1024 * 1024;
 
 const BodySchema = z.object({
-  image: z.string().min(32).max(9_000_000),
-  mimeType: z.string().min(3).max(100),
+  image: z.string().min(32).max(9_000_000).optional(),
+  mimeType: z.string().min(3).max(100).optional(),
+  text: z.string().min(3).max(10_000).optional(),
   categories: z.array(z.string().min(1).max(60)).max(80).default([]),
   currency: z.string().min(1).max(10).optional(),
+}).refine((value) => Boolean(value.text || (value.image && value.mimeType)), {
+  message: 'A receipt image, PDF, or shared payment text is required.',
 });
 
 function json(body: unknown, status = 200) {
@@ -41,16 +44,16 @@ Deno.serve(async (req) => {
 
     const parsed = BodySchema.safeParse(await req.json());
     if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
-    const { image, mimeType, categories, currency } = parsed.data;
+    const { image, mimeType, text: sharedText, categories, currency } = parsed.data;
 
-    if (!ALLOWED_MIME.includes(mimeType)) {
+    if (mimeType && !ALLOWED_MIME.includes(mimeType)) {
       return json({ error: 'Unsupported file type. Upload a JPG, PNG, WEBP or PDF bill.' }, 400);
     }
-    const base64 = image.includes(',') ? image.split(',')[1] : image;
-    if ((base64.length * 3) / 4 > MAX_BYTES) {
+    const base64 = image ? (image.includes(',') ? image.split(',')[1] : image) : '';
+    if (base64 && (base64.length * 3) / 4 > MAX_BYTES) {
       return json({ error: 'File is too large. Please upload a bill under 5MB.' }, 400);
     }
-    const dataUrl = `data:${mimeType};base64,${base64}`;
+    const dataUrl = image && mimeType ? `data:${mimeType};base64,${base64}` : '';
 
     const categoryLine = categories.length
       ? `Pick "category" from exactly one of this list (choose the closest match, otherwise "Other"): ${categories.join(', ')}.`
@@ -68,7 +71,9 @@ Deno.serve(async (req) => {
       'If the image is not a bill or is unreadable, set amount to 0 and confidence to 0.',
     ].join('\n');
 
-    const content = mimeType === 'application/pdf'
+    const content = sharedText
+      ? [{ type: 'input_text', text: `${instruction}\n\nShared payment details:\n${sharedText}` }]
+      : mimeType === 'application/pdf'
       ? [
           { type: 'input_text', text: instruction },
           { type: 'input_file', filename: 'bill.pdf', file_data: dataUrl },

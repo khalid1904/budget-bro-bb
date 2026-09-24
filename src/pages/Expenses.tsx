@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Progress } from '@/components/ui/progress';
 import { sortItems, SORT_OPTIONS, SortOption, formatAddedAt } from '@/lib/sort-utils';
-import { scanBill } from '@/lib/bill-scan';
+import { scanBill, scanSharedReceiptText, ScannedBill } from '@/lib/bill-scan';
 
 function getMonthOptions() {
   const months: string[] = [];
@@ -47,9 +47,11 @@ export default function ExpensesPage() {
   const [filterCategory, setFilterCategory] = useState('all');
   const [sortBy, setSortBy] = useState<SortOption>('added_desc');
   const [scanning, setScanning] = useState(false);
+  const [shareRecoveryOpen, setShareRecoveryOpen] = useState(false);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'budget'>('list');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recoveryInputRef = useRef<HTMLInputElement>(null);
   const billScanEnabled = profile.tier === 'pro' && settings.bill_scan_enabled;
 
   const monthOptions = getMonthOptions();
@@ -89,23 +91,28 @@ export default function ExpensesPage() {
 
   const resetForm = () => { setTitle(''); setAmount(''); setCategory(''); setDate(''); setNotes(''); setEditId(null); setScanNotice(null); };
 
+  const applyScanResult = (result: ScannedBill) => {
+    setEditId(null);
+    setTitle(result.title || '');
+    setAmount(result.amount > 0 ? String(result.amount) : '');
+    setDate(result.date || '');
+    setNotes(result.notes || '');
+    setCategory(allCategories.includes(result.category) ? result.category : '');
+    setScanNotice(
+      result.confidence < 0.6 || result.amount <= 0
+        ? "We couldn't read this receipt clearly — please check every field before saving."
+        : 'Scanned from your receipt. Review the details before saving.'
+    );
+    setDialogOpen(true);
+  };
+
   const handleScanFile = async (file: File | undefined) => {
     if (!file) return;
     setScanning(true);
     try {
       const result = await scanBill(file, allCategories, settings.default_currency);
-      setEditId(null);
-      setTitle(result.title || '');
-      setAmount(result.amount > 0 ? String(result.amount) : '');
-      setDate(result.date || '');
-      setNotes(result.notes || '');
-      setCategory(allCategories.includes(result.category) ? result.category : '');
-      setScanNotice(
-        result.confidence < 0.6 || result.amount <= 0
-          ? "We couldn't read this bill clearly — please check every field before saving."
-          : 'Scanned from your bill. Review the details before saving.'
-      );
-      setDialogOpen(true);
+      applyScanResult(result);
+      setShareRecoveryOpen(false);
     } catch (err: any) {
       toast({ title: 'Bill scan failed', description: err?.message ?? 'Please try again.', variant: 'destructive' });
     } finally {
@@ -119,7 +126,7 @@ export default function ExpensesPage() {
   const { settingsLoaded } = useBudget();
 
   useEffect(() => {
-    const shared = searchParams.get('shared');
+      const shared = searchParams.get('shared');
     if (!shared || sharedHandled.current || !settingsLoaded) return;
     sharedHandled.current = true;
     const next = new URLSearchParams(searchParams);
@@ -127,14 +134,13 @@ export default function ExpensesPage() {
     setSearchParams(next, { replace: true });
 
     (async () => {
-      if (shared === 'error' || shared === 'raw-error' || shared === 'no-file') {
-        const detail = shared === 'no-file' ? 'No image was included by the sharing app.' : 'Android could not decode the shared image.';
-        toast({ title: 'Could not read the shared receipt', description: `${detail} Please try the Scan Bill button instead.`, variant: 'destructive' });
+      if (shared === 'error' || shared === 'raw-error' || shared === 'no-file' || shared === 'missing') {
+        setShareRecoveryOpen(true);
         return;
       }
-      const file = await takeSharedReceipt();
-      if (!file) {
-        toast({ title: 'No receipt received', description: 'Use the Scan Bill button to upload it manually.' });
+      const receipt = await takeSharedReceipt(shared);
+      if (!receipt) {
+        setShareRecoveryOpen(true);
         return;
       }
       if (!billScanEnabled) {
@@ -145,7 +151,18 @@ export default function ExpensesPage() {
         });
         return;
       }
-      await handleScanFile(file);
+      setScanning(true);
+      try {
+        const result = receipt.kind === 'file'
+          ? await scanBill(receipt.file, allCategories, settings.default_currency)
+          : await scanSharedReceiptText(receipt.text, allCategories, settings.default_currency);
+        applyScanResult(result);
+      } catch (err: any) {
+        toast({ title: 'Could not read the shared receipt', description: err?.message ?? 'Choose a receipt screenshot instead.', variant: 'destructive' });
+        setShareRecoveryOpen(true);
+      } finally {
+        setScanning(false);
+      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, billScanEnabled, settingsLoaded]);
@@ -265,6 +282,22 @@ export default function ExpensesPage() {
 
       {view === 'list' && (
         <>
+          <Dialog open={shareRecoveryOpen} onOpenChange={setShareRecoveryOpen}>
+            <DialogContent>
+              <DialogHeader><DialogTitle className="font-display">Choose the receipt screenshot</DialogTitle></DialogHeader>
+              <p className="text-sm text-muted-foreground">The payment app opened Budget Bro but did not provide readable receipt details. Choose its saved receipt screenshot to continue.</p>
+              <input
+                ref={recoveryInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
+                className="hidden"
+                onChange={e => handleScanFile(e.target.files?.[0])}
+              />
+              <Button disabled={scanning} onClick={() => recoveryInputRef.current?.click()}>
+                {scanning ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Scanning...</> : <><ScanLine className="w-4 h-4 mr-1" /> Choose Screenshot</>}
+              </Button>
+            </DialogContent>
+          </Dialog>
           {/* Expense List */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">

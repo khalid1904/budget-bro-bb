@@ -94,3 +94,27 @@ export async function scanBill(
   if (data?.error) throw new Error(String(data.error));
   return data as ScannedBill;
 }
+
+export async function scanSharedReceiptText(
+  text: string,
+  categories: string[],
+  currency?: string,
+): Promise<ScannedBill> {
+  const { data, error } = await supabase.functions.invoke('scan-bill', {
+    body: { text: text.slice(0, 10_000), categories, currency },
+  });
+
+  if (error) {
+    let message = 'Could not read the shared payment details. Please choose a receipt screenshot.';
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.json === 'function') {
+      try {
+        const body = await ctx.json();
+        if (typeof body?.error === 'string') message = body.error;
+      } catch { /* keep default */ }
+    }
+    throw new Error(message);
+  }
+  if (data?.error) throw new Error(String(data.error));
+  return data as ScannedBill;
+}
