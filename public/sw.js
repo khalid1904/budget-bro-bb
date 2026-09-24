@@ -1,9 +1,6 @@
 const SHARE_CACHE = 'budget-bro-share';
-const SHARE_KEY = '/__shared-receipt';
 
-self.addEventListener('install', () => {
-  self.skipWaiting();
-});
+self.addEventListener('install', () => self.skipWaiting());
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
@@ -18,8 +15,55 @@ self.addEventListener('activate', (event) => {
 function redirectTo(path) {
   return new Response('', {
     status: 303,
-    headers: { Location: new URL(path, self.location.origin).href }
+    headers: { Location: new URL(path, self.location.origin).href },
   });
+}
+
+function createShareId() {
+  return typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function safeFileName(name, type) {
+  const fallback = type === 'application/pdf' ? 'receipt.pdf' : 'receipt.jpg';
+  return (name || fallback).replace(/[^\w.\-]/g, '_').slice(0, 180);
+}
+
+function inferType(name, bytes) {
+  const lower = (name || '').toLowerCase();
+  if (lower.endsWith('.pdf')) return 'application/pdf';
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+  if (bytes?.length >= 4) {
+    if (bytes[0] === 0xff && bytes[1] === 0xd8) return 'image/jpeg';
+    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'image/png';
+    if (bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46) return 'application/pdf';
+    if (bytes.length >= 12 && new TextDecoder().decode(bytes.slice(8, 12)) === 'WEBP') return 'image/webp';
+  }
+  return '';
+}
+
+function isSupportedType(type) {
+  return type === 'image/jpeg' || type === 'image/png' || type === 'image/webp' || type === 'application/pdf';
+}
+
+async function storePayload(payload) {
+  const shareId = createShareId();
+  const key = `/__shared-receipt-${shareId}`;
+  const cache = await caches.open(SHARE_CACHE);
+  const headers = { 'x-share-kind': payload.kind };
+
+  if (payload.kind === 'file') {
+    headers['content-type'] = payload.type;
+    headers['x-file-name'] = safeFileName(payload.name, payload.type);
+  } else {
+    headers['content-type'] = 'text/plain; charset=utf-8';
+  }
+
+  await cache.put(key, new Response(payload.body, { headers }));
+  return shareId;
 }
 
 function findBytes(source, target, from = 0) {
@@ -32,7 +76,7 @@ function findBytes(source, target, from = 0) {
   return -1;
 }
 
-async function readRawMultipart(request) {
+async function parseRawMultipart(request) {
   const contentType = request.headers.get('content-type') || '';
   const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
   const boundary = boundaryMatch && (boundaryMatch[1] || boundaryMatch[2]);
@@ -42,8 +86,8 @@ async function readRawMultipart(request) {
   const encoder = new TextEncoder();
   const headerEndMarker = encoder.encode('\r\n\r\n');
   const boundaryMarker = encoder.encode(`\r\n--${boundary}`);
+  const textParts = [];
   let cursor = 0;
-  let firstNamedPart = null;
 
   while (cursor < bytes.length) {
     const headerEnd = findBytes(bytes, headerEndMarker, cursor);
@@ -52,101 +96,82 @@ async function readRawMultipart(request) {
     const bodyStart = headerEnd + headerEndMarker.length;
     const bodyEnd = findBytes(bytes, boundaryMarker, bodyStart);
     if (bodyEnd < 0) break;
-    const filenameMatch = headers.match(/filename\*?=(?:UTF-8''|"?)([^";\r\n]+)/i);
-    const fieldNameMatch = headers.match(/name="?([^";\r\n]+)"?/i);
-    const typeMatch = headers.match(/content-type:\s*([^\r\n]+)/i);
-    const body = bytes.slice(bodyStart, bodyEnd);
-    const type = typeMatch ? typeMatch[1].trim() : 'application/octet-stream';
-    const fieldName = fieldNameMatch ? fieldNameMatch[1] : '';
-    const isReceiptPart = fieldName === 'receipt' || fieldName === 'file' || fieldName === 'files';
-    const isSupportedFile = type.startsWith('image/') || type === 'application/pdf';
 
-    if (body.byteLength > 0 && (filenameMatch || isSupportedFile || isReceiptPart)) {
-      let decodedName = '';
-      if (filenameMatch) {
-        try {
-          decodedName = decodeURIComponent(filenameMatch[1].replace(/^"|"$/g, ''));
-        } catch {
-          decodedName = filenameMatch[1].replace(/^"|"$/g, '');
-        }
-      }
-      const part = {
-        body,
-        name: decodedName || defaultNameForType(type),
-        type,
-      };
-      if (isSupportedFile || filenameMatch) return part;
-      if (!firstNamedPart) firstNamedPart = part;
+    const disposition = headers.match(/content-disposition:[^\r\n]+/i)?.[0] || '';
+    const fieldName = disposition.match(/(?:^|;\s*)name="?([^";\r\n]+)"?/i)?.[1] || '';
+    const encodedName = disposition.match(/filename\*=UTF-8''([^;\r\n]+)/i)?.[1];
+    const plainName = disposition.match(/(?:^|;\s*)filename="?([^";\r\n]+)"?/i)?.[1];
+    let fileName = encodedName || plainName || '';
+    try { fileName = decodeURIComponent(fileName); } catch { /* retain original */ }
+
+    const body = bytes.slice(bodyStart, bodyEnd);
+    const declaredType = headers.match(/content-type:\s*([^\r\n]+)/i)?.[1]?.trim().toLowerCase() || '';
+    const inferredType = inferType(fileName, body);
+    const type = isSupportedType(declaredType) ? declaredType : inferredType;
+
+    if (body.byteLength > 0 && type) {
+      return { kind: 'file', body, name: safeFileName(fileName, type), type };
+    }
+
+    if (body.byteLength > 0 && ['title', 'text', 'url'].includes(fieldName)) {
+      const value = new TextDecoder().decode(body).trim();
+      if (value) textParts.push(value);
     }
     cursor = bodyEnd + boundaryMarker.length;
   }
-  return firstNamedPart;
+
+  const text = [...new Set(textParts)].join('\n').trim();
+  return text ? { kind: 'text', body: text } : null;
 }
 
-function defaultNameForType(type) {
-  if (type === 'application/pdf') return 'receipt.pdf';
-  if (type === 'image/png') return 'receipt.png';
-  if (type === 'image/webp') return 'receipt.webp';
-  return 'receipt.jpg';
-}
-
-async function storeSharedFile(body, rawName, rawType) {
-  const type = rawType || 'application/octet-stream';
-  const name = (rawName || defaultNameForType(type)).replace(/[^\w.\-]/g, '_');
-  const cache = await caches.open(SHARE_CACHE);
-  await cache.delete(SHARE_KEY);
-  await cache.put(
-    SHARE_KEY,
-    new Response(body, {
-      headers: {
-        'content-type': type,
-        'x-file-name': name,
-      },
-    })
+async function parseFormData(request) {
+  const formData = await request.formData();
+  const files = Array.from(formData.values()).filter(
+    (value) => value && typeof value !== 'string' && typeof value.arrayBuffer === 'function' && value.size > 0
   );
+
+  for (const file of files) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const type = isSupportedType(file.type) ? file.type : inferType(file.name, bytes);
+    if (type) return { kind: 'file', body: bytes, name: safeFileName(file.name, type), type };
+  }
+
+  const text = ['title', 'text', 'url']
+    .flatMap((key) => formData.getAll(key))
+    .filter((value) => typeof value === 'string' && value.trim())
+    .map((value) => value.trim());
+  const uniqueText = [...new Set(text)].join('\n').trim();
+  return uniqueText ? { kind: 'text', body: uniqueText } : null;
 }
 
 async function handleShare(request) {
   const rawRequest = request.clone();
+  let payload = null;
   try {
-    const formData = await request.formData();
-    const candidates = [
-      ...formData.getAll('receipt'),
-      ...formData.getAll('file'),
-      ...formData.getAll('files'),
-      ...Array.from(formData.values()),
-    ];
-    const file = candidates.find(
-      (value) => value && typeof value !== 'string' && typeof value.size === 'number' && value.size > 0
-    );
-
-    if (file && typeof file !== 'string') {
-      await storeSharedFile(file, file.name, file.type);
-      return redirectTo('/expenses?shared=1');
-    }
+    payload = await parseFormData(request);
   } catch {
-    // Some Android apps send file shares that Chromium cannot expose as FormData.
+    // Fall through to byte-level multipart parsing for nonstandard Android shares.
   }
 
-  try {
-    const rawFile = await readRawMultipart(rawRequest);
-    if (rawFile) {
-      await storeSharedFile(rawFile.body, rawFile.name, rawFile.type);
-      return redirectTo('/expenses?shared=1');
+  if (!payload) {
+    try {
+      payload = await parseRawMultipart(rawRequest);
+    } catch {
+      return redirectTo('/expenses?shared=raw-error');
     }
-  } catch {
-    return redirectTo('/expenses?shared=raw-error');
   }
-  return redirectTo('/expenses?shared=no-file');
+
+  if (!payload) return redirectTo('/expenses?shared=no-file');
+  const shareId = await storePayload(payload);
+  return redirectTo(`/expenses?shared=${encodeURIComponent(shareId)}`);
 }
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  if (url.pathname === '/share-target' || url.pathname === '/share-target-v2') {
-    if (event.request.method === 'POST') {
-      event.respondWith(handleShare(event.request));
-      return;
-    }
-    event.respondWith(redirectTo('/expenses?shared=1'));
-  }
+  if (url.pathname !== '/share-target' && url.pathname !== '/share-target-v2') return;
+  event.respondWith(
+    event.request.method === 'POST'
+      ? handleShare(event.request)
+      : Promise.resolve(redirectTo('/expenses?shared=missing'))
+  );
 });
