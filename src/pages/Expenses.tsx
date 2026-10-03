@@ -158,8 +158,11 @@ export default function ExpensesPage() {
           : await scanSharedReceiptText(receipt.text, allCategories, settings.default_currency);
         applyScanResult(result);
       } catch (err: any) {
-        toast({ title: 'Could not read the shared receipt', description: err?.message ?? 'Choose a receipt screenshot instead.', variant: 'destructive' });
-        setShareRecoveryOpen(true);
+        toast({
+          title: 'Receipt scan failed',
+          description: err?.message ?? 'The receipt was received, but scanning failed. Check your connection and try Scan Bill again.',
+          variant: 'destructive',
+        });
       } finally {
         setScanning(false);
       }

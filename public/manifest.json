@@ -20,6 +20,7 @@
         {
           "name": "receipt",
           "accept": [
+            "image/*",
             "image/jpeg",
             "image/png",
             "image/webp",
