@@ -32,6 +32,9 @@ export async function prepareBillFile(file: File): Promise<{ data: string; mimeT
     const out = canvas.toDataURL('image/jpeg', 0.85);
     return { data: out.split(',')[1], mimeType: 'image/jpeg' };
   } catch {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(mimeType)) {
+      throw new Error('This image format could not be opened for scanning. Choose a JPG, PNG, or WebP receipt image.');
+    }
     return { data: dataUrl.split(',')[1], mimeType };
   }
 }

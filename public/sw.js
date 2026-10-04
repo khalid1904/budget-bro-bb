@@ -26,7 +26,8 @@ function createShareId() {
 }
 
 function safeFileName(name, type) {
-  const fallback = type === 'application/pdf' ? 'receipt.pdf' : 'receipt.jpg';
+  const extension = type === 'application/pdf' ? 'pdf' : type.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'jpg';
+  const fallback = `receipt.${extension}`;
   return (name || fallback).replace(/[^\w.\-]/g, '_').slice(0, 180);
 }
 
@@ -41,6 +42,11 @@ function inferType(name, bytes) {
     if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'image/png';
     if (bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46) return 'application/pdf';
     if (bytes.length >= 12 && new TextDecoder().decode(bytes.slice(8, 12)) === 'WEBP') return 'image/webp';
+    if (bytes.length >= 12 && new TextDecoder().decode(bytes.slice(4, 12)).startsWith('ftyp')) {
+      const brand = new TextDecoder().decode(bytes.slice(8, 12));
+      if (['heic', 'heix', 'hevc', 'hevx', 'mif1', 'msf1'].includes(brand)) return 'image/heic';
+      if (['avif', 'avis'].includes(brand)) return 'image/avif';
+    }
   }
   return '';
 }
@@ -107,7 +113,9 @@ async function parseRawMultipart(request) {
     const body = bytes.slice(bodyStart, bodyEnd);
     const declaredType = headers.match(/content-type:\s*([^\r\n]+)/i)?.[1]?.trim().toLowerCase() || '';
     const inferredType = inferType(fileName, body);
-    const type = isSupportedType(declaredType) ? declaredType : inferredType;
+    const type = isSupportedType(declaredType)
+      ? declaredType
+      : inferredType || (/^image\/[a-z0-9.+-]+$/i.test(declaredType) && declaredType !== 'image/*' ? declaredType : '');
 
     if (body.byteLength > 0 && type) {
       return { kind: 'file', body, name: safeFileName(fileName, type), type };
@@ -132,7 +140,11 @@ async function parseFormData(request) {
 
   for (const file of files) {
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const type = isSupportedType(file.type) ? file.type : inferType(file.name, bytes);
+    const declaredType = (file.type || '').split(';')[0].trim().toLowerCase();
+    const inferredType = inferType(file.name, bytes);
+    const type = isSupportedType(declaredType)
+      ? declaredType
+      : inferredType || (/^image\/[a-z0-9.+-]+$/i.test(declaredType) && declaredType !== 'image/*' ? declaredType : '');
     if (type) return { kind: 'file', body: bytes, name: safeFileName(file.name, type), type };
   }
 
