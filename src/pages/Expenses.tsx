@@ -48,6 +48,7 @@ export default function ExpensesPage() {
   const [sortBy, setSortBy] = useState<SortOption>('added_desc');
   const [scanning, setScanning] = useState(false);
   const [shareRecoveryOpen, setShareRecoveryOpen] = useState(false);
+  const [shareIssue, setShareIssue] = useState('');
   const [scanNotice, setScanNotice] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'budget'>('list');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -126,20 +127,24 @@ export default function ExpensesPage() {
   const { settingsLoaded } = useBudget();
 
   useEffect(() => {
-      const shared = searchParams.get('shared');
+    const shared = searchParams.get('shared');
     if (!shared || sharedHandled.current || !settingsLoaded) return;
     sharedHandled.current = true;
+    const detail = searchParams.get('d') || '';
     const next = new URLSearchParams(searchParams);
     next.delete('shared');
+    next.delete('d');
     setSearchParams(next, { replace: true });
 
     (async () => {
-      if (shared === 'error' || shared === 'raw-error' || shared === 'no-file' || shared === 'missing') {
+      if (!/^[a-zA-Z0-9-]{8,80}$/.test(shared) || ['raw-error', 'store-error', 'get-request', 'sw-error'].includes(shared)) {
+        setShareIssue(`${shared}${detail ? ` · ${detail}` : ''}`);
         setShareRecoveryOpen(true);
         return;
       }
       const receipt = await takeSharedReceipt(shared);
       if (!receipt) {
+        setShareIssue('cache-miss');
         setShareRecoveryOpen(true);
         return;
       }
@@ -289,6 +294,9 @@ export default function ExpensesPage() {
             <DialogContent>
               <DialogHeader><DialogTitle className="font-display">Choose the receipt screenshot</DialogTitle></DialogHeader>
               <p className="text-sm text-muted-foreground">The payment app opened Budget Bro but did not provide readable receipt details. Choose its saved receipt screenshot to continue.</p>
+              {shareIssue && (
+                <p className="text-[11px] font-mono text-muted-foreground/80 break-all rounded-md bg-muted px-2 py-1">Debug code: {shareIssue}</p>
+              )}
               <input
                 ref={recoveryInputRef}
                 type="file"
