@@ -53,7 +53,8 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
-            <Route path="/share-target" element={<Navigate to="/expenses?shared=missing" replace />} />
+            <Route path="/share-target" element={<Navigate to="/expenses?shared=no-sw&d=legacy" replace />} />
+            <Route path="/share-target-v2" element={<Navigate to="/expenses?shared=no-sw&d=v2" replace />} />
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
             <Route element={<ProtectedRoute><RecurringProvider><AppLayout /></RecurringProvider></ProtectedRoute>}>
