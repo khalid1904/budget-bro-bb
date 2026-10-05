@@ -294,6 +294,9 @@ export default function ExpensesPage() {
             <DialogContent>
               <DialogHeader><DialogTitle className="font-display">Choose the receipt screenshot</DialogTitle></DialogHeader>
               <p className="text-sm text-muted-foreground">The payment app opened Budget Bro but did not provide readable receipt details. Choose its saved receipt screenshot to continue.</p>
+              {shareIssue && (
+                <p className="text-[11px] font-mono text-muted-foreground/80 break-all rounded-md bg-muted px-2 py-1">Debug code: {shareIssue}</p>
+              )}
               <input
                 ref={recoveryInputRef}
                 type="file"
