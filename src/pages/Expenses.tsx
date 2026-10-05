@@ -137,7 +137,7 @@ export default function ExpensesPage() {
     setSearchParams(next, { replace: true });
 
     (async () => {
-      if (!/^[a-zA-Z0-9-]{8,80}$/.test(shared) || ['raw-error', 'store-error', 'get-request'].includes(shared)) {
+      if (!/^[a-zA-Z0-9-]{8,80}$/.test(shared) || ['raw-error', 'store-error', 'get-request', 'sw-error'].includes(shared)) {
         setShareIssue(`${shared}${detail ? ` · ${detail}` : ''}`);
         setShareRecoveryOpen(true);
         return;
