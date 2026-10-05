@@ -293,9 +293,16 @@ export default function ExpensesPage() {
           <Dialog open={shareRecoveryOpen} onOpenChange={setShareRecoveryOpen}>
             <DialogContent>
               <DialogHeader><DialogTitle className="font-display">Choose the receipt screenshot</DialogTitle></DialogHeader>
-              <p className="text-sm text-muted-foreground">The payment app opened Budget Bro but did not provide readable receipt details. Choose its saved receipt screenshot to continue.</p>
+              {shareIssue.startsWith('no-file') ? (
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <p>Your payment app opened Budget Bro but didn't hand over the receipt image — Android delivered an empty share.</p>
+                  <p><span className="font-medium text-foreground">Quick fix:</span> take a screenshot of the receipt, then tap the button below and pick it (it shows up at the top of recent photos). Sharing that screenshot from your Gallery to Budget Bro also works.</p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">The payment app opened Budget Bro but did not provide readable receipt details. Choose its saved receipt screenshot to continue.</p>
+              )}
               {shareIssue && (
-                <p className="text-[11px] font-mono text-muted-foreground/80 break-all rounded-md bg-muted px-2 py-1">Debug code: {shareIssue}</p>
+                <p className="text-[10px] font-mono text-muted-foreground/70 break-all">Ref: {shareIssue}</p>
               )}
               <input
                 ref={recoveryInputRef}
