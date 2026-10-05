@@ -156,8 +156,32 @@ async function parseFormData(request) {
   return uniqueText ? { kind: 'text', body: uniqueText } : null;
 }
 
+const SW_VERSION = 'share-8';
+
+// Builds a short, content-free summary of what Android sent (field names, types, sizes only).
+async function describeShare(request) {
+  const contentType = (request.headers.get('content-type') || 'none').split(';')[0];
+  const length = request.headers.get('content-length') || '?';
+  const parts = [];
+  try {
+    const formData = await request.formData();
+    for (const [name, value] of formData.entries()) {
+      if (typeof value === 'string') parts.push(`${name}=text(${value.length})`);
+      else parts.push(`${name}=${value.type || 'notype'}(${value.size}${value.name ? ',named' : ''})`);
+    }
+  } catch {
+    parts.push('formdata-unreadable');
+  }
+  return `${SW_VERSION};${contentType};len=${length};${parts.join(',') || 'no-parts'}`.slice(0, 300);
+}
+
+function failTo(reason, detail) {
+  return redirectTo(`/expenses?shared=${reason}&d=${encodeURIComponent(detail || SW_VERSION)}`);
+}
+
 async function handleShare(request) {
   const rawRequest = request.clone();
+  const diagRequest = request.clone();
   let payload = null;
   try {
     payload = await parseFormData(request);
@@ -169,13 +193,17 @@ async function handleShare(request) {
     try {
       payload = await parseRawMultipart(rawRequest);
     } catch {
-      return redirectTo('/expenses?shared=raw-error');
+      return failTo('raw-error', await describeShare(diagRequest));
     }
   }
 
-  if (!payload) return redirectTo('/expenses?shared=no-file');
-  const shareId = await storePayload(payload);
-  return redirectTo(`/expenses?shared=${encodeURIComponent(shareId)}`);
+  if (!payload) return failTo('no-file', await describeShare(diagRequest));
+  try {
+    const shareId = await storePayload(payload);
+    return redirectTo(`/expenses?shared=${encodeURIComponent(shareId)}`);
+  } catch {
+    return failTo('store-error', await describeShare(diagRequest));
+  }
 }
 
 self.addEventListener('fetch', (event) => {
@@ -183,7 +211,7 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname !== '/share-target' && url.pathname !== '/share-target-v2') return;
   event.respondWith(
     event.request.method === 'POST'
-      ? handleShare(event.request)
-      : Promise.resolve(redirectTo('/expenses?shared=missing'))
+      ? handleShare(event.request).catch(() => failTo('sw-error', SW_VERSION))
+      : Promise.resolve(failTo('get-request', `${SW_VERSION};method=${event.request.method}`))
   );
 });
