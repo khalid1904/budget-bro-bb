@@ -354,6 +354,27 @@ export default function ExpensesPage() {
               </Button>
             </DialogContent>
           </Dialog>
+          <Dialog open={nativeReceiptPickerOpen} onOpenChange={setNativeReceiptPickerOpen}>
+            <DialogContent>
+              <DialogHeader><DialogTitle className="font-display">Choose a receipt to scan</DialogTitle></DialogHeader>
+              <div className="flex flex-col gap-2">
+                {nativeReceipts.map((file, index) => (
+                  <Button
+                    key={`${file.name}-${index}`}
+                    variant="outline"
+                    className="justify-start gap-3 whitespace-normal text-left"
+                    onClick={() => {
+                      setNativeReceiptPickerOpen(false);
+                      void handleScanFile(file);
+                    }}
+                  >
+                    <ScanLine className="h-4 w-4 shrink-0" />
+                    <span className="min-w-0 truncate">{file.name || `Receipt ${index + 1}`}</span>
+                  </Button>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
           {/* Expense List */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
