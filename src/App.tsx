@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { BudgetProvider, useBudget } from "@/lib/budget-context";
 import { RecurringProvider } from "@/lib/recurring-context";
@@ -49,29 +49,44 @@ function TierRoute({ children }: { children: React.ReactNode }) {
 
 function NativeShareRouterBridge() {
   const navigate = useNavigate();
+  const { user, loading } = useBudget();
+  const pendingShareRef = useRef<string | null>(null);
+  const [receivedShareId, setReceivedShareId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
     let active = true;
-    const openShare = (id: string) => {
-      if (!active || !id) return;
-      navigate(`/expenses?nativeShare=${encodeURIComponent(id)}`, { replace: true });
-    };
-
-    const attachAndCheck = async () => {
-      const listener = await ReceiptShare.addListener('shareReceived', ({ id }) => openShare(id));
+    const attachListener = async () => {
+      const listener = await ReceiptShare.addListener('shareReceived', ({ id }) => {
+        pendingShareRef.current = id;
+        setReceivedShareId(id);
+      });
       if (!active) {
         await listener.remove();
-        return;
       }
-      const { shares } = await ReceiptShare.getPendingShares();
-      if (shares[0]) openShare(shares[0].id);
     };
 
-    void attachAndCheck().catch(() => {});
+    void attachListener().catch(() => {});
     return () => { active = false; };
-  }, [navigate]);
+  }, []);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || loading || !user) return;
+
+    let active = true;
+    const openPendingShare = async () => {
+      let id = pendingShareRef.current || receivedShareId;
+      if (!id) {
+        const { shares } = await ReceiptShare.getPendingShares();
+        id = shares[0]?.id || null;
+      }
+      if (active && id) navigate(`/expenses?nativeShare=${encodeURIComponent(id)}`, { replace: true });
+    };
+
+    void openPendingShare().catch(() => {});
+    return () => { active = false; };
+  }, [navigate, receivedShareId, user, loading]);
 
   return null;
 }

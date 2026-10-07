@@ -175,7 +175,7 @@ export default function ExpensesPage() {
         }
         return;
       }
-      if (!/^[a-zA-Z0-9-]{8,80}$/.test(shared) || ['raw-error', 'store-error', 'get-request', 'sw-error'].includes(shared)) {
+      if (!shared || !/^[a-zA-Z0-9-]{8,80}$/.test(shared) || ['raw-error', 'store-error', 'get-request', 'sw-error'].includes(shared)) {
         setShareIssue(`${shared}${detail ? ` · ${detail}` : ''}`);
         setShareRecoveryOpen(true);
         return;
