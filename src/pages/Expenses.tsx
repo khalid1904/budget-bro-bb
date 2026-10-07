@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Progress } from '@/components/ui/progress';
 import { sortItems, SORT_OPTIONS, SortOption, formatAddedAt } from '@/lib/sort-utils';
 import { scanBill, scanSharedReceiptText, ScannedBill } from '@/lib/bill-scan';
+import { consumeNativeSharedImages } from '@/lib/android-receipt-share';
 
 function getMonthOptions() {
   const months: string[] = [];
@@ -49,6 +50,8 @@ export default function ExpensesPage() {
   const [scanning, setScanning] = useState(false);
   const [shareRecoveryOpen, setShareRecoveryOpen] = useState(false);
   const [shareIssue, setShareIssue] = useState('');
+  const [nativeReceipts, setNativeReceipts] = useState<File[]>([]);
+  const [nativeReceiptPickerOpen, setNativeReceiptPickerOpen] = useState(false);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'budget'>('list');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -123,21 +126,56 @@ export default function ExpensesPage() {
   };
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const sharedHandled = useRef(false);
+  const sharedHandled = useRef(new Set<string>());
   const { settingsLoaded } = useBudget();
 
   useEffect(() => {
     const shared = searchParams.get('shared');
-    if (!shared || sharedHandled.current || !settingsLoaded) return;
-    sharedHandled.current = true;
+    const nativeShare = searchParams.get('nativeShare');
+    const shareKey = nativeShare ? `native:${nativeShare}` : shared;
+    if (!shareKey || sharedHandled.current.has(shareKey) || !settingsLoaded) return;
+    sharedHandled.current.add(shareKey);
     const detail = searchParams.get('d') || '';
     const next = new URLSearchParams(searchParams);
     next.delete('shared');
+    next.delete('nativeShare');
     next.delete('d');
     setSearchParams(next, { replace: true });
 
     (async () => {
-      if (!/^[a-zA-Z0-9-]{8,80}$/.test(shared) || ['raw-error', 'store-error', 'get-request', 'sw-error'].includes(shared)) {
+      if (nativeShare) {
+        try {
+          const files = await consumeNativeSharedImages(nativeShare);
+          if (!files.length) {
+            setShareIssue('native-no-file');
+            setShareRecoveryOpen(true);
+            return;
+          }
+          if (!billScanEnabled) {
+            toast({ title: 'Bill Scan is off', description: 'Enable Settings → Pro Features → Bill Scan (AI) to scan shared receipts.', variant: 'destructive' });
+            return;
+          }
+          if (files.length > 1) {
+            setNativeReceipts(files);
+            setNativeReceiptPickerOpen(true);
+            return;
+          }
+          setScanning(true);
+          try {
+            const result = await scanBill(files[0], allCategories, settings.default_currency);
+            applyScanResult(result);
+          } catch (err: any) {
+            toast({ title: 'Receipt scan failed', description: err?.message ?? 'The receipt was received, but scanning failed. Check your connection and try Scan Bill again.', variant: 'destructive' });
+          } finally {
+            setScanning(false);
+          }
+        } catch (err: any) {
+          setShareIssue(`native-read-error${err?.message ? ` · ${err.message}` : ''}`);
+          setShareRecoveryOpen(true);
+        }
+        return;
+      }
+      if (!shared || !/^[a-zA-Z0-9-]{8,80}$/.test(shared) || ['raw-error', 'store-error', 'get-request', 'sw-error'].includes(shared)) {
         setShareIssue(`${shared}${detail ? ` · ${detail}` : ''}`);
         setShareRecoveryOpen(true);
         return;
@@ -173,7 +211,7 @@ export default function ExpensesPage() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, billScanEnabled, settingsLoaded]);
+    }, [searchParams, billScanEnabled, settingsLoaded]);
 
   const handleSubmit = async () => {
     if (!title.trim() || !amount || !category) {
@@ -314,6 +352,27 @@ export default function ExpensesPage() {
               <Button disabled={scanning} onClick={() => recoveryInputRef.current?.click()}>
                 {scanning ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Scanning...</> : <><ScanLine className="w-4 h-4 mr-1" /> Choose Screenshot</>}
               </Button>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={nativeReceiptPickerOpen} onOpenChange={setNativeReceiptPickerOpen}>
+            <DialogContent>
+              <DialogHeader><DialogTitle className="font-display">Choose a receipt to scan</DialogTitle></DialogHeader>
+              <div className="flex flex-col gap-2">
+                {nativeReceipts.map((file, index) => (
+                  <Button
+                    key={`${file.name}-${index}`}
+                    variant="outline"
+                    className="justify-start gap-3 whitespace-normal text-left"
+                    onClick={() => {
+                      setNativeReceiptPickerOpen(false);
+                      void handleScanFile(file);
+                    }}
+                  >
+                    <ScanLine className="h-4 w-4 shrink-0" />
+                    <span className="min-w-0 truncate">{file.name || `Receipt ${index + 1}`}</span>
+                  </Button>
+                ))}
+              </div>
             </DialogContent>
           </Dialog>
           {/* Expense List */}
