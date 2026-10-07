@@ -231,13 +231,38 @@ public class ReceiptSharePlugin extends Plugin {
     private String getReceiptMimeType(Uri uri) {
         String mime = getContext().getContentResolver().getType(uri);
         if (mime != null) mime = mime.split(";")[0].trim().toLowerCase();
-        if (mime != null && (mime.startsWith("image/") || "application/pdf".equals(mime))) return mime;
+        if (mime != null && mime.matches("image/[a-z0-9.+-]+") && !"image/*".equals(mime)) return mime;
+        if ("application/pdf".equals(mime)) return mime;
 
         String name = getDisplayName(uri).toLowerCase();
         if (name.endsWith(".pdf")) return "application/pdf";
         String extension = MimeTypeMap.getFileExtensionFromUrl(name);
         String guessed = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
-        return guessed != null && guessed.startsWith("image/") ? guessed : null;
+        if (guessed != null && guessed.matches("image/[a-z0-9.+-]+")) return guessed;
+        return inferMimeTypeFromContent(uri);
+    }
+
+    @Nullable
+    private String inferMimeTypeFromContent(Uri uri) {
+        try (InputStream input = getContext().getContentResolver().openInputStream(uri)) {
+            if (input == null) return null;
+            byte[] bytes = new byte[16];
+            int count = input.read(bytes);
+            if (count >= 3 && (bytes[0] & 0xff) == 0xff && (bytes[1] & 0xff) == 0xd8) return "image/jpeg";
+            if (count >= 8 && (bytes[0] & 0xff) == 0x89 && bytes[1] == 'P' && bytes[2] == 'N' && bytes[3] == 'G') return "image/png";
+            if (count >= 12 && bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F'
+                    && bytes[8] == 'W' && bytes[9] == 'E' && bytes[10] == 'B' && bytes[11] == 'P') return "image/webp";
+            if (count >= 5 && bytes[0] == '%' && bytes[1] == 'P' && bytes[2] == 'D' && bytes[3] == 'F') return "application/pdf";
+            if (count >= 12 && bytes[4] == 'f' && bytes[5] == 't' && bytes[6] == 'y' && bytes[7] == 'p') {
+                String brand = new String(bytes, 8, 4, java.nio.charset.StandardCharsets.US_ASCII);
+                if ("avif".equals(brand) || "avis".equals(brand)) return "image/avif";
+                if ("heic".equals(brand) || "heix".equals(brand) || "hevc".equals(brand)
+                        || "hevx".equals(brand) || "mif1".equals(brand) || "msf1".equals(brand)) return "image/heic";
+            }
+        } catch (Exception ignored) {
+            return null;
+        }
+        return null;
     }
 
     private String getDisplayName(Uri uri) {

@@ -51,6 +51,7 @@ function NativeShareRouterBridge() {
   const navigate = useNavigate();
   const { user, loading } = useBudget();
   const pendingShareRef = useRef<string | null>(null);
+  const routedSharesRef = useRef(new Set<string>());
   const [receivedShareId, setReceivedShareId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -79,9 +80,13 @@ function NativeShareRouterBridge() {
       let id = pendingShareRef.current || receivedShareId;
       if (!id) {
         const { shares } = await ReceiptShare.getPendingShares();
-        id = shares[0]?.id || null;
+        id = shares.find((share) => !routedSharesRef.current.has(share.id))?.id || null;
       }
-      if (active && id) navigate(`/expenses?nativeShare=${encodeURIComponent(id)}`, { replace: true });
+      if (active && id && !routedSharesRef.current.has(id)) {
+        routedSharesRef.current.add(id);
+        pendingShareRef.current = null;
+        navigate(`/expenses?nativeShare=${encodeURIComponent(id)}`, { replace: true });
+      }
     };
 
     void openPendingShare().catch(() => {});
