@@ -2,7 +2,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
 import { BudgetProvider, useBudget } from "@/lib/budget-context";
 import { RecurringProvider } from "@/lib/recurring-context";
 import Landing from "./pages/Landing";
@@ -22,6 +24,7 @@ import Settings from "./pages/Settings";
 import Lending from "./pages/Lending";
 import AppLayout from "./components/layout/AppLayout";
 import NotFound from "./pages/NotFound";
+import { ReceiptShare } from "@/lib/android-receipt-share";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +47,35 @@ function TierRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function NativeShareRouterBridge() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let active = true;
+    const openShare = (id: string) => {
+      if (!active || !id) return;
+      navigate(`/expenses?nativeShare=${encodeURIComponent(id)}`, { replace: true });
+    };
+
+    const attachAndCheck = async () => {
+      const listener = await ReceiptShare.addListener('shareReceived', ({ id }) => openShare(id));
+      if (!active) {
+        await listener.remove();
+        return;
+      }
+      const { shares } = await ReceiptShare.getPendingShares();
+      if (shares[0]) openShare(shares[0].id);
+    };
+
+    void attachAndCheck().catch(() => {});
+    return () => { active = false; };
+  }, [navigate]);
+
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -51,6 +83,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <NativeShareRouterBridge />
           <Routes>
             <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
             <Route path="/share-target" element={<Navigate to="/expenses?shared=no-sw&d=legacy" replace />} />
