@@ -1,9 +1,9 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 
 interface NativeSharedFile {
-  path: string;
   name: string;
   type: string;
+  data: string;
 }
 
 interface ReceiptSharePlugin {
@@ -24,13 +24,13 @@ export async function consumeNativeSharedImages(id: string): Promise<File[]> {
 
   const { files } = await ReceiptShare.consumeSharedImages({ id });
   try {
-    const receipts = await Promise.all(files.map(async (sharedFile) => {
-      const response = await fetch(Capacitor.convertFileSrc(sharedFile.path));
-      if (!response.ok) throw new Error('The shared receipt could not be opened on this device.');
-      const blob = await response.blob();
-      if (blob.size === 0) throw new Error('The shared receipt was empty.');
-      return new File([blob], sharedFile.name, { type: sharedFile.type || blob.type });
-    }));
+    const receipts = files.map((sharedFile) => {
+      const binary = atob(sharedFile.data);
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+      if (!bytes.length) throw new Error('The shared receipt was empty.');
+      return new File([bytes], sharedFile.name, { type: sharedFile.type });
+    });
     await ReceiptShare.acknowledgeSharedImages({ id });
     return receipts;
   } catch (error) {
