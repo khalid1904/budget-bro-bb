@@ -4,6 +4,7 @@ import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.util.Base64;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -27,6 +28,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -42,6 +44,7 @@ import java.util.concurrent.Executors;
 public class ReceiptSharePlugin extends Plugin {
     private static final String PREFS_NAME = "budget_bro_receipt_shares";
     private static final String PENDING_KEY = "pending";
+    private static final long MAX_SHARED_FILE_BYTES = 12L * 1024L * 1024L;
     private final ExecutorService copyExecutor = Executors.newSingleThreadExecutor();
 
     @Override
@@ -94,10 +97,16 @@ public class ReceiptSharePlugin extends Plugin {
                 if (storedFile == null) continue;
                 File file = new File(storedFile.optString("path", ""));
                 if (!file.isFile()) continue;
+                if (file.length() > MAX_SHARED_FILE_BYTES) {
+                    call.reject("This receipt is too large to share into Budget Bro. Choose a smaller image or screenshot.");
+                    return;
+                }
+                byte[] contents = readFile(file);
+                if (contents == null || contents.length == 0) continue;
                 JSObject sharedFile = new JSObject();
-                sharedFile.put("path", file.getAbsolutePath());
                 sharedFile.put("name", storedFile.optString("name", "receipt.jpg"));
                 sharedFile.put("type", storedFile.optString("type", "image/jpeg"));
+                sharedFile.put("data", Base64.encodeToString(contents, Base64.NO_WRAP));
                 files.put(sharedFile);
             }
         }
@@ -221,7 +230,7 @@ public class ReceiptSharePlugin extends Plugin {
             writePending(pending);
             JSObject event = new JSObject();
             event.put("id", id);
-            notifyListeners("shareReceived", event, true);
+            getActivity().runOnUiThread(() -> notifyListeners("shareReceived", event, true));
         } catch (JSONException ignored) {
             deleteRecordFiles(record);
         }
@@ -329,6 +338,22 @@ public class ReceiptSharePlugin extends Plugin {
     private String stripExtension(String filename) {
         int dot = filename.lastIndexOf('.');
         return dot > 0 ? filename.substring(0, dot) : filename;
+    }
+
+    @Nullable
+    private byte[] readFile(File file) {
+        try (FileInputStream input = new FileInputStream(file);
+             java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream()) {
+            byte[] buffer = new byte[16 * 1024];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                if (output.size() + read > MAX_SHARED_FILE_BYTES) return null;
+                output.write(buffer, 0, read);
+            }
+            return output.toByteArray();
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private JSONArray readPending() {
