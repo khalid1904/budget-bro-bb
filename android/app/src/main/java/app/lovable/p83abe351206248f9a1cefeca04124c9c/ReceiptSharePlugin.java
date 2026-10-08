@@ -56,7 +56,6 @@ public class ReceiptSharePlugin extends Plugin {
         }
 
         List<Uri> sharedUris = collectUris(intent);
-        if (sharedUris.isEmpty()) return;
 
         final String shareId = UUID.randomUUID().toString();
         final List<Uri> uris = sharedUris;
