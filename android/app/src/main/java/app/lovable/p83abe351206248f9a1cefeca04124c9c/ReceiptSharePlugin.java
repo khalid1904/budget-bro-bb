@@ -214,7 +214,6 @@ public class ReceiptSharePlugin extends Plugin {
             }
         }
 
-        if (copiedFiles.length() == 0) return;
         JSONObject record = new JSONObject();
         try {
             record.put("id", id);

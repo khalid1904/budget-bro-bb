@@ -147,7 +147,7 @@ export default function ExpensesPage() {
         try {
           const files = await consumeNativeSharedImages(nativeShare);
           if (!files.length) {
-            setShareIssue('native-no-file');
+            setShareIssue('no-file · Android received no readable image');
             setShareRecoveryOpen(true);
             return;
           }
