@@ -1,4 +1,20 @@
-# Welcome to your Lovable project
+# Budget Bro
+
+Budget Bro is a React app that runs on the web and in a Capacitor Android app. Android keeps the existing features and adds native receipt image/PDF sharing from other apps.
+
+## Android app
+
+Android builds require Node.js/npm, a compatible Java Development Kit, and the Android SDK. To prepare and open the project:
+
+```sh
+npm install
+npm run android:sync
+npm run android:open
+```
+
+Use Android Studio to run on a device/emulator or build and sign an APK/AAB. Test receipt sharing from payment apps on an Android device. This workspace does not include Java or the Android SDK, so an APK cannot be built here.
+
+For development-only live reload, set `CAPACITOR_LIVE_RELOAD=true` before running `npm run android:sync:live`. Do not use live reload in release builds.
 
 ## Project info
 
