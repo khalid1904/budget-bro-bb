@@ -156,6 +156,36 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Data Export / Import */}
+      <Card className="shadow-card">
+        <CardHeader><CardTitle className="font-display">Data — Export &amp; Import</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Export downloads one file with all your budgets, transactions, expenses, loans, goals, categories and
+            settings. Open Settings in any other Budget Bro account to import it there.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleExport} disabled={transferBusy !== null}>
+              <Download className="w-4 h-4 mr-2" />{transferBusy === 'export' ? 'Exporting…' : 'Export All Data'}
+            </Button>
+            <Button variant="outline" disabled={transferBusy !== null} onClick={() => fileInputRef.current?.click()}>
+              <Upload className="w-4 h-4 mr-2" />{transferBusy === 'import' ? 'Importing…' : 'Import From File'}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => void handleFilePicked(e.target.files?.[0])}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Importing replaces everything currently in this account with the file's data — the account's own plan and
+            sign-in are not affected.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Appearance / Themes */}
       <Card className="shadow-card">
         <CardHeader>
@@ -329,6 +359,23 @@ export default function SettingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Import confirm */}
+      <AlertDialog open={importOpen} onOpenChange={setImportOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace everything in this account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Importing erases all budgets, transactions, expenses, loans, goals, categories and settings currently in
+              this account, then restores the data from the export file. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleImportConfirm}>Import &amp; Replace</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete confirm */}
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
