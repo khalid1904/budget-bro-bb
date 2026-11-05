@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 export default function ProfilePage() {
   const { profile, updateProfile } = useBudget();
@@ -17,30 +16,10 @@ export default function ProfilePage() {
   const [bio, setBio] = useState(profile.bio);
   const [selectedAvatar, setSelectedAvatar] = useState(profile.avatar);
   const [savingAvatar, setSavingAvatar] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [changingPassword, setChangingPassword] = useState(false);
 
   const handleSaveProfile = async () => {
     await updateProfile({ username: username.trim(), bio: bio.trim() });
     toast({ title: 'Profile updated!' });
-  };
-
-  const handleChangePassword = async () => {
-    if (!newPassword || newPassword.length < 6) {
-      toast({ title: 'New password must be at least 6 characters', variant: 'destructive' });
-      return;
-    }
-    setChangingPassword(true);
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    setChangingPassword(false);
-    if (error) {
-      toast({ title: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Password updated!' });
-      setCurrentPassword('');
-      setNewPassword('');
-    }
   };
 
   return (
@@ -80,16 +59,6 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      <Card className="shadow-card">
-        <CardHeader><CardTitle className="font-display">Change Password</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2"><Label>Current Password</Label><Input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Enter current password" /></div>
-          <div className="space-y-2"><Label>New Password</Label><Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Min 6 characters" /></div>
-          <Button variant="outline" onClick={handleChangePassword} disabled={changingPassword}>
-            {changingPassword ? 'Updating...' : 'Update Password'}
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }

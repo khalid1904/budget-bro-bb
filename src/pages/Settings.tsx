@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useBudget, CURRENCIES, CustomCategoryRecord } from '@/lib/budget-context';
 import { DEFAULT_INCOMING_CATEGORIES, DEFAULT_OUTGOING_CATEGORIES } from '@/lib/types';
 import { getCategoryIcon, COLOR_PRESETS } from '@/lib/category-icons';
@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Plus, Edit2, Trash2, Lock } from 'lucide-react';
+import { Plus, Edit2, Trash2, Lock, Download, Upload } from 'lucide-react';
 import { IconPicker } from '@/components/IconPicker';
+import { buildExport, downloadExport, importAllData, parseImportFile, type ExportFile } from '@/lib/data-transfer';
 import { useToast } from '@/hooks/use-toast';
 
 const THEMES: { id: string; name: string; swatch: [string, string] }[] = [
@@ -37,6 +38,51 @@ export default function SettingsPage() {
   const [icon, setIcon] = useState('MoreHorizontal');
   const [color, setColor] = useState(COLOR_PRESETS[0]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [transferBusy, setTransferBusy] = useState<null | 'export' | 'import'>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingImportRef = useRef<ExportFile | null>(null);
+
+  const handleExport = async () => {
+    setTransferBusy('export');
+    try {
+      const data = await buildExport();
+      const stamp = new Date().toISOString().slice(0, 10);
+      downloadExport(data, `budget-bro-export-${stamp}.json`);
+      toast({ title: 'Export downloaded', description: 'Keep the file safe — import it into any other Budget Bro account.' });
+    } catch (err: any) {
+      toast({ title: 'Export failed', description: err?.message ?? 'Please try again.', variant: 'destructive' });
+    } finally {
+      setTransferBusy(null);
+    }
+  };
+
+  const handleFilePicked = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      pendingImportRef.current = await parseImportFile(file);
+      setImportOpen(true);
+    } catch (err: any) {
+      toast({ title: 'Import failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleImportConfirm = async () => {
+    const pending = pendingImportRef.current;
+    if (!pending) return;
+    setImportOpen(false);
+    setTransferBusy('import');
+    try {
+      await importAllData(pending);
+      toast({ title: 'Import complete', description: 'Your account now holds the exported data. Reloading…' });
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err: any) {
+      toast({ title: 'Import failed', description: err?.message ?? 'Please try again.', variant: 'destructive' });
+      setTransferBusy(null);
+    }
+  };
 
   const openAdd = () => {
     setEditing(null);
@@ -107,6 +153,36 @@ export default function SettingsPage() {
             </div>
             <Switch checked={isDark} onCheckedChange={toggleDark} />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Data Export / Import */}
+      <Card className="shadow-card">
+        <CardHeader><CardTitle className="font-display">Data — Export &amp; Import</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Export downloads one file with all your budgets, transactions, expenses, loans, goals, categories and
+            settings. Open Settings in any other Budget Bro account to import it there.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleExport} disabled={transferBusy !== null}>
+              <Download className="w-4 h-4 mr-2" />{transferBusy === 'export' ? 'Exporting…' : 'Export All Data'}
+            </Button>
+            <Button variant="outline" disabled={transferBusy !== null} onClick={() => fileInputRef.current?.click()}>
+              <Upload className="w-4 h-4 mr-2" />{transferBusy === 'import' ? 'Importing…' : 'Import From File'}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => void handleFilePicked(e.target.files?.[0])}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Importing replaces everything currently in this account with the file's data — the account's own plan and
+            sign-in are not affected.
+          </p>
         </CardContent>
       </Card>
 
@@ -283,6 +359,23 @@ export default function SettingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Import confirm */}
+      <AlertDialog open={importOpen} onOpenChange={setImportOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace everything in this account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Importing erases all budgets, transactions, expenses, loans, goals, categories and settings currently in
+              this account, then restores the data from the export file. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleImportConfirm}>Import &amp; Replace</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete confirm */}
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
