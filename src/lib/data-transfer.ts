@@ -87,7 +87,7 @@ export async function buildExport(): Promise<ExportFile> {
 
   for (const table of DATA_TABLES) {
     const { data: rows, error } = await supabase
-      .from(table as string)
+      .from(table)
       .select('*')
       .eq('user_id', uid);
     if (error) throw new Error(`Export failed while reading ${table}.`);
@@ -162,7 +162,7 @@ export async function importAllData(
   const counts: Record<string, number> = {};
 
   for (const table of WIPE_ORDER) {
-    const { error } = await supabase.from(table as string).delete().eq('user_id', uid);
+    const { error } = await supabase.from(table).delete().eq('user_id', uid);
     if (error) throw new Error(`Import failed while clearing existing ${table}. Nothing was changed before this step.`);
   }
 
@@ -173,7 +173,7 @@ export async function importAllData(
     counts[table] = rows.length;
     for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
       const chunk = rows.slice(i, i + CHUNK_SIZE);
-      const { error } = await supabase.from(table as string).insert(chunk);
+      const { error } = await supabase.from(table).insert(chunk as any);
       if (error) throw new Error(`Import stopped on ${table}: ${error.message}`);
     }
     onProgress?.(`Restored ${table.replace(/_/g, ' ')}…`);
