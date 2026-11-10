@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { getRecoveryRedirectUrl } from '@/lib/auth-flow';
 
 const NAME_ASKED_FLAG = (userId: string) => `bb-name-asked-${userId}`;
 
@@ -20,7 +21,15 @@ export default function LoginPage() {
   const [nameOpen, setNameOpen] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const state = location.state as { notice?: string } | null;
+    if (!state?.notice) return;
+    toast({ title: state.notice });
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate, toast]);
 
   const signIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -55,7 +64,7 @@ export default function LoginPage() {
     }
     setLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: getRecoveryRedirectUrl(window.location.origin),
     });
     setLoading(false);
     if (error) {
