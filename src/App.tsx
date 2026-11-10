@@ -10,6 +10,7 @@ import { RecurringProvider } from "@/lib/recurring-context";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Budget from "./pages/Budget";
 import Analytics from "./pages/Analytics";
@@ -110,6 +111,7 @@ const App = () => (
             <Route path="/share-target-v2" element={<Navigate to="/expenses?shared=no-sw&d=v2" replace />} />
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route element={<ProtectedRoute><RecurringProvider><AppLayout /></RecurringProvider></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/yearly" element={<TierRoute><YearlyInsights /></TierRoute>} />
