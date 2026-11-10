@@ -1,4 +1,5 @@
 # Android app roadmap
+- [x] Replace email-code authentication with email/password sign-in, automatic signup confirmation, and signed-out password recovery.
 - [x] Configure Capacitor for Budget Bro and create the Android project.
 - [x] Add a native Android share receiver for images, including cold-start and already-open delivery into the existing expense scan flow.
 - [x] Validate the web application and Android project as far as the available environment permits.
