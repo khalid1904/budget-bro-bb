@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { isPasswordValid, passwordsMatch, SIGNUP_SUCCESS_PATH } from '@/lib/auth-flow';
+import { getAuthRedirectOrigin, isPasswordValid, passwordsMatch, SIGNUP_SUCCESS_PATH } from '@/lib/auth-flow';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -34,7 +34,7 @@ export default function RegisterPage() {
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: `${getAuthRedirectOrigin(window.location.origin)}/login` },
     });
     if (error) {
       setLoading(false);

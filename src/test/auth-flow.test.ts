@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   getRecoveryRedirectUrl,
+  getAuthRedirectOrigin,
   isPasswordValid,
   isRecoveryLinkHash,
   passwordsMatch,
@@ -25,7 +26,25 @@ describe('authentication flow rules', () => {
 
   it('sends recovery links to the reset-password page', () => {
     expect(getRecoveryRedirectUrl('https://budget-bro-bb.lovable.app'))
-      .toBe('https://budget-bro-bb.lovable.app/reset-password');
+      .toBe('https://budget-bro-bb.vercel.app/reset-password');
+  });
+
+  it.each([
+    'https://budget-bro-bb.vercel.app',
+    'https://budget-bro-bb.lovable.app',
+    'https://preview.lovableproject.com',
+    'https://budget-bro-preview.vercel.app',
+    'https://localhost',
+    'capacitor://localhost',
+    'http://localhost',
+  ])('uses the public Vercel site for production emails from %s', origin => {
+    expect(getAuthRedirectOrigin(origin, false)).toBe('https://budget-bro-bb.vercel.app');
+    expect(getRecoveryRedirectUrl(origin, false)).toBe('https://budget-bro-bb.vercel.app/reset-password');
+  });
+
+  it('keeps local development email redirects on the local server', () => {
+    expect(getRecoveryRedirectUrl('http://localhost:8080', true)).toBe('http://localhost:8080/reset-password');
+    expect(getAuthRedirectOrigin('http://127.0.0.1:8080', true)).toBe('http://127.0.0.1:8080');
   });
 
   it('recognizes a recovery link only when its hash says recovery', () => {

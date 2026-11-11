@@ -2,6 +2,39 @@
 
 Budget Bro is a React app that runs on the web and in a Capacitor Android app. Android keeps the existing features and adds native receipt image/PDF sharing from other apps.
 
+## Production hosting and authentication
+
+The public app is https://budget-bro-bb.vercel.app. Vercel deploys the connected
+GitHub repository. `vercel.json` serves React routes such as `/reset-password`
+and `/dashboard` on direct visits and refreshes.
+
+Email redirects use `PUBLIC_APP_URL` in `src/lib/auth-flow.ts`, including when
+requested from Android or previews. Local HTTP development uses its own origin.
+The Supabase project remains the existing Lovable-connected backend.
+
+Before using email authentication on Vercel, update the **hosted** Supabase
+Authentication → URL Configuration (or the equivalent Lovable-managed auth settings):
+
+- Site URL: `https://budget-bro-bb.vercel.app`
+- Allowed redirect URLs:
+  - `https://budget-bro-bb.vercel.app`
+  - `https://budget-bro-bb.vercel.app/login`
+  - `https://budget-bro-bb.vercel.app/reset-password`
+- For local development only, also allow `http://localhost:8080/**` if needed.
+
+Check the confirmation and password-recovery email templates for hardcoded
+Lovable links. Their action links should use `{{ .ConfirmationURL }}` so Supabase
+verifies the token before redirecting to the requested page. Do not replace the
+action link with just the app URL. These hosted settings are not changed by a
+Git push or by editing `supabase/config.toml`.
+
+After publishing and updating those settings, request a **new** password reset
+email and verify it opens `/reset-password` on Vercel, saves the password, and
+returns to `/login`. Existing emails retain their original destinations.
+
+References: [Supabase redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls)
+and [Vite on Vercel](https://vercel.com/docs/frameworks/frontend/vite).
+
 ## Android app
 
 Android builds require Node.js/npm, a compatible Java Development Kit, and the Android SDK. To prepare and open the project:
