@@ -73,10 +73,12 @@ async function requireUserId(): Promise<string> {
   return user.id;
 }
 
-function pickFields(row: Record<string, any> | null, fields: readonly string[]): Record<string, any> {
+function pickFields<K extends string>(row: Record<string, any> | null, fields: readonly K[]): Partial<Record<K, any>> {
   if (!row) return {};
-  const out: Record<string, any> = {};
-  for (const f of fields) out[f] = row[f];
+  const out: Partial<Record<K, any>> = {};
+  for (const f of fields) {
+    if (row[f] !== undefined) out[f] = row[f];
+  }
   return out;
 }
 
@@ -131,6 +133,73 @@ export function downloadExport(exportData: ExportFile, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
+type DataTable = (typeof DATA_TABLES)[number];
+
+const REFERENCES: Partial<Record<DataTable, Record<string, DataTable>>> = {
+  transactions: { goal_id: 'savings_goals', recurring_rule_id: 'recurring_rules', transfer_ref_id: 'other_budget_transactions' },
+  other_budget_transactions: { other_budget_id: 'other_budgets', goal_id: 'savings_goals', transfer_ref_id: 'transactions' },
+  expenses: { budget_transaction_id: 'transactions' },
+  loans: { linked_transaction_id: 'transactions', linked_other_budget_txn_id: 'other_budget_transactions' },
+  loan_recoveries: { loan_id: 'loans', linked_transaction_id: 'transactions', linked_other_budget_txn_id: 'other_budget_transactions' },
+};
+
+function isRecord(value: unknown): value is Record<string, any> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function validateExport(parsed: unknown): asserts parsed is ExportFile {
+  if (!isRecord(parsed) || parsed.app !== 'budget-bro' || !isRecord(parsed.data)) {
+    throw new Error("That file isn't a Budget Bro export file.");
+  }
+  if (typeof parsed.format === 'number' && parsed.format > EXPORT_FORMAT_VERSION) {
+    throw new Error('This export came from a newer app version. Update Budget Bro first.');
+  }
+  if (parsed.format !== EXPORT_FORMAT_VERSION) throw new Error('Unsupported export format.');
+  for (const table of DATA_TABLES) {
+    if (!Array.isArray(parsed.data[table])) throw new Error(`Invalid export: missing or invalid ${table}.`);
+    const ids = new Set<string>();
+    for (const row of parsed.data[table]) {
+      if (!isRecord(row) || typeof row.id !== 'string' || !row.id || ids.has(row.id)) {
+        throw new Error(`Invalid export: invalid or duplicate record ID in ${table}.`);
+      }
+      ids.add(row.id);
+    }
+  }
+  for (const key of ['profile', 'user_settings']) {
+    if (parsed.data[key] !== undefined && !isRecord(parsed.data[key])) {
+      throw new Error(`Invalid export: invalid ${key}.`);
+    }
+  }
+}
+
+/** Prepare the entire record graph before making any destructive requests. */
+export function prepareImportData(exportFile: ExportFile, uid: string): ExportFile['data'] {
+  validateExport(exportFile);
+  const ids = Object.fromEntries(DATA_TABLES.map(table => [
+    table, new Map(exportFile.data[table].map(row => [row.id, crypto.randomUUID()])),
+  ])) as Record<DataTable, Map<string, string>>;
+  const data = { ...exportFile.data };
+  for (const table of DATA_TABLES) {
+    data[table] = exportFile.data[table].map(row => {
+      const copy = { ...row, id: ids[table].get(row.id), user_id: uid };
+      for (const [field, target] of Object.entries(REFERENCES[table] ?? {})) {
+        const value = row[field];
+        if (value == null) {
+          if (field === 'other_budget_id' || field === 'loan_id') {
+            throw new Error(`Invalid export: missing ${table}.${field}.`);
+          }
+          continue;
+        }
+        const replacement = ids[target].get(value);
+        if (!replacement) throw new Error(`Invalid export: ${table}.${field} points to a missing ${target} record.`);
+        copy[field] = replacement;
+      }
+      return copy;
+    });
+  }
+  return data;
+}
+
 /** Read and validate an export file chosen by the user. */
 export async function parseImportFile(file: File): Promise<ExportFile> {
   let parsed: any;
@@ -139,19 +208,14 @@ export async function parseImportFile(file: File): Promise<ExportFile> {
   } catch {
     throw new Error("That file isn't a valid Budget Bro export.");
   }
-  if (parsed?.app !== 'budget-bro' || typeof parsed?.format !== 'number' || !parsed?.data) {
-    throw new Error("That file isn't a Budget Bro export file.");
-  }
-  if (parsed.format > EXPORT_FORMAT_VERSION) {
-    throw new Error('This export came from a newer app version. Update Budget Bro first.');
-  }
+  validateExport(parsed);
   return parsed as ExportFile;
 }
 
 /**
  * Replace everything currently in the signed-in account with the export
- * file's data. Deletes first, then re-inserts with the original IDs and
- * cross-references so linked entries stay connected. The account's tier,
+ * file's data. Assigns fresh IDs and remaps cross-references before deleting
+ * existing data, so imports into another account cannot collide with the source. The account's tier,
  * email and auth identity are never touched.
  */
 export async function importAllData(
@@ -159,16 +223,16 @@ export async function importAllData(
   onProgress?: (message: string) => void,
 ): Promise<Record<string, number>> {
   const uid = await requireUserId();
+  const data = prepareImportData(exportFile, uid);
   const counts: Record<string, number> = {};
 
   for (const table of WIPE_ORDER) {
     const { error } = await supabase.from(table).delete().eq('user_id', uid);
-    if (error) throw new Error(`Import failed while clearing existing ${table}. Nothing was changed before this step.`);
+    if (error) throw new Error(`Import failed while clearing ${table}: ${error.message}. Earlier steps may have changed data; keep your export file to retry.`);
   }
 
   for (const table of INSERT_ORDER) {
-    const rows = (Array.isArray((exportFile.data as any)[table]) ? (exportFile.data as any)[table] : [])
-      .map((row: Record<string, any>) => ({ ...row, user_id: uid }));
+    const rows = data[table];
 
     counts[table] = rows.length;
     for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
@@ -181,11 +245,13 @@ export async function importAllData(
 
   const settings = pickFields(exportFile.data?.user_settings ?? {}, SETTINGS_FIELDS);
   if (Object.keys(settings).length) {
-    await supabase.from('user_settings').update(settings).eq('user_id', uid);
+    const { error } = await supabase.from('user_settings').update(settings).eq('user_id', uid);
+    if (error) throw new Error(`Import stopped on settings: ${error.message}`);
   }
   const profile = pickFields(exportFile.data?.profile ?? {}, PROFILE_FIELDS);
-  if (profile.username || profile.avatar || profile.bio) {
-    await supabase.from('profiles').update(profile).eq('user_id', uid);
+  if (Object.keys(profile).length) {
+    const { error } = await supabase.from('profiles').update(profile).eq('user_id', uid);
+    if (error) throw new Error(`Import stopped on profile: ${error.message}`);
   }
 
   return counts;
