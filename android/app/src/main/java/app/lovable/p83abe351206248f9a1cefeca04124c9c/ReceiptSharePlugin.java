@@ -45,6 +45,7 @@ public class ReceiptSharePlugin extends Plugin {
     private static final String PREFS_NAME = "budget_bro_receipt_shares";
     private static final String PENDING_KEY = "pending";
     private static final long MAX_SHARED_FILE_BYTES = 12L * 1024L * 1024L;
+    private final Object pendingLock = new Object();
     private final ExecutorService copyExecutor = Executors.newSingleThreadExecutor();
 
     @Override
@@ -118,18 +119,20 @@ public class ReceiptSharePlugin extends Plugin {
     @PluginMethod
     public void acknowledgeSharedImages(PluginCall call) {
         String id = call.getString("id", "");
-        JSONArray pending = readPending();
-        JSONArray remaining = new JSONArray();
-        for (int index = 0; index < pending.length(); index++) {
-            JSONObject record = pending.optJSONObject(index);
-            if (record == null) continue;
-            if (id.equals(record.optString("id"))) {
-                deleteRecordFiles(record);
-            } else {
-                remaining.put(record);
+        synchronized (pendingLock) {
+            JSONArray pending = readPending();
+            JSONArray remaining = new JSONArray();
+            for (int index = 0; index < pending.length(); index++) {
+                JSONObject record = pending.optJSONObject(index);
+                if (record == null) continue;
+                if (id.equals(record.optString("id"))) {
+                    deleteRecordFiles(record);
+                } else {
+                    remaining.put(record);
+                }
             }
+            writePending(remaining);
         }
-        writePending(remaining);
         call.resolve();
     }
 
@@ -218,14 +221,16 @@ public class ReceiptSharePlugin extends Plugin {
         try {
             record.put("id", id);
             record.put("files", copiedFiles);
-            JSONArray pending = readPending();
-            pending.put(record);
-            while (pending.length() > 10) {
-                JSONObject oldest = pending.optJSONObject(0);
-                if (oldest != null) deleteRecordFiles(oldest);
-                pending = removeFirst(pending);
+            synchronized (pendingLock) {
+                JSONArray pending = readPending();
+                pending.put(record);
+                while (pending.length() > 10) {
+                    JSONObject oldest = pending.optJSONObject(0);
+                    if (oldest != null) deleteRecordFiles(oldest);
+                    pending = removeFirst(pending);
+                }
+                writePending(pending);
             }
-            writePending(pending);
             JSObject event = new JSObject();
             event.put("id", id);
             getActivity().runOnUiThread(() -> notifyListeners("shareReceived", event, true));

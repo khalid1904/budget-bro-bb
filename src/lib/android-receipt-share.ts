@@ -18,10 +18,33 @@ interface ReceiptSharePlugin {
 
 export const ReceiptShare = registerPlugin<ReceiptSharePlugin>('ReceiptShare');
 
+// Keep a small session cache so remounts/repeated delivery reuse the same read,
+// even after Android has deleted the acknowledged files.
+const receiptReads = new Map<string, Promise<File[]>>();
+
 /** Read the app-private copies Android made while the share permission was valid. */
 export async function consumeNativeSharedImages(id: string): Promise<File[]> {
   if (!Capacitor.isNativePlatform()) return [];
 
+  const existing = receiptReads.get(id);
+  if (existing) return existing;
+  const read = readAndAcknowledge(id);
+  receiptReads.set(id, read);
+  try {
+    return await read;
+  } catch (error) {
+    receiptReads.delete(id);
+    throw error;
+  } finally {
+    // Bound retained receipt data after completed reads.
+    if (receiptReads.size > 5) {
+      const oldest = receiptReads.keys().next().value;
+      if (oldest !== id) receiptReads.delete(oldest);
+    }
+  }
+}
+
+async function readAndAcknowledge(id: string): Promise<File[]> {
   const { files } = await ReceiptShare.consumeSharedImages({ id });
   try {
     const receipts = files.map((sharedFile) => {

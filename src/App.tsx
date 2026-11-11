@@ -59,18 +59,18 @@ function NativeShareRouterBridge() {
     if (!Capacitor.isNativePlatform()) return;
 
     let active = true;
+    let removeListener: (() => Promise<void>) | undefined;
     const attachListener = async () => {
       const listener = await ReceiptShare.addListener('shareReceived', ({ id }) => {
         pendingShareRef.current = id;
         setReceivedShareId(id);
       });
-      if (!active) {
-        await listener.remove();
-      }
+      removeListener = () => listener.remove();
+      if (!active) await removeListener();
     };
 
     void attachListener().catch(() => {});
-    return () => { active = false; };
+    return () => { active = false; void removeListener?.(); };
   }, []);
 
   useEffect(() => {
@@ -78,11 +78,12 @@ function NativeShareRouterBridge() {
 
     let active = true;
     const openPendingShare = async () => {
-      let id = pendingShareRef.current || receivedShareId;
-      if (!id) {
-        const { shares } = await ReceiptShare.getPendingShares();
-        id = shares.find((share) => !routedSharesRef.current.has(share.id))?.id || null;
-      }
+      // Retained native events may refer to receipts already acknowledged.
+      // The native queue, not the last event, is the source of truth.
+      const { shares } = await ReceiptShare.getPendingShares();
+      const requestedId = pendingShareRef.current || receivedShareId;
+      const unread = shares.filter(share => !routedSharesRef.current.has(share.id));
+      const id = unread.find(share => share.id === requestedId)?.id || unread[0]?.id;
       if (active && id && !routedSharesRef.current.has(id)) {
         routedSharesRef.current.add(id);
         pendingShareRef.current = null;
